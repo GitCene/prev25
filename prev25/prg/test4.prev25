@@ -4,6 +4,6 @@ char ch = '#'
 
 fun racunaj(int a, char b, T c) <T> {
     int returnResult = a+b-'0'+c-4328947+' ' # komentar for (int i = range(10))
-    print(""narejeno"")
+    print("narejeno")
     return returnResult
 }

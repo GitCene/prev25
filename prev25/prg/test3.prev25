@@ -1,6 +1,6 @@
 char* _pter
 
-if (pter=="to je string lol () \\ \'") {
+if (pter=="to je string lol () \w \\ \'") {
     return 'k'
 }
 
