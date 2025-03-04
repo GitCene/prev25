@@ -1,0 +1,36 @@
+# each line should cause an error
+# syn6
+10
+
+# syn7
+a = b
+
+# syn8
+fun a() : void = return
+
+# syn9
+fun a() : void = while int do end
+fun a() : void = while var a : test do end
+fun a() : void = while true do int end
+fun a() : void = while true do 
+
+# syn10
+fun a() : void = if int then end
+fun a() : void = if var a : test then end
+fun a() : void = if true then int end
+fun a() : void = if true then
+
+# syn11
+fun a() : void = if int then else end
+fun a() : void = if var a : test then else end
+fun a() : void = if true then else int end
+fun a() : void = if true then else
+fun a() : void = if true else end
+
+# syn12
+fun a() : void = let 10 in 10 end
+fun a() : void = let in 10 end
+fun a() : void = let var a : int in 10 
+fun a() : void = let var a : int, 10 in 10 end
+fun a() : void = let var a : int in var a : int end
+fun a() : void = let 10 end

@@ -1,0 +1,18 @@
+# Test for expr rules 29-30
+fun main() : int =
+    -1,
+    +2,
+    !true,
+    true&true,
+    false|true,
+    1==2,
+    1!=1,
+    1<3,
+    2>1,
+    1<=1,
+    0>=0,
+    2*3,
+    4/2,
+    7%2,
+    1+1,
+    2-1

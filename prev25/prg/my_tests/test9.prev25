@@ -1,0 +1,17 @@
+# Test for statement rules 10-11: if else 
+fun main() : int =
+    if 1 then end,
+    if 2 then
+        3
+    end,
+    if 4 then 
+        if 5 then else end,
+        if 6 then 7 else 8 end,
+        if 9 then
+            10,
+            11
+        else
+            12,
+            13
+        end
+    end

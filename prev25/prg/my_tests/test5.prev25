@@ -1,0 +1,2 @@
+# Negative test for rule 4
+fun calc(num1 : int num2 : int) : int

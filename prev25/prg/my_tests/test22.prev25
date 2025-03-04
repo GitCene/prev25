@@ -1,0 +1,5 @@
+# Test for operator priority - parentheses
+fun main() : int =
+    3 + 4 * 2,
+    (3 + 4) * 2,
+    3 + (4 * 2)

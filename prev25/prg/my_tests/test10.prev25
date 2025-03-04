@@ -1,0 +1,13 @@
+# Test for statement rule 12 : let
+fun main() : int =
+    let
+        var nil : int 
+    in
+        let
+            var a : int
+            var b : int 
+        in
+            1 = 2,
+            3
+        end
+    end

@@ -1,0 +1,5 @@
+# Test for type rules 20-22
+var a : < a1 : int, a2 : int>
+var b : { a1: int, a2 : int}
+var c : (int, bool) : int
+var d : () : void

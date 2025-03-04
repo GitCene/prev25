@@ -1,0 +1,8 @@
+# Test for type rules 13-19
+var a : int
+var b : bool
+var c : char
+var d : void
+var e : customType
+var arr : [10]int
+var ptr : ^char

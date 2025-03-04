@@ -1,0 +1,11 @@
+# Test for expr rules 31-39
+fun main() : int =
+    arr[7],
+    list.first,
+    ptr^,
+    ^ref, 
+    add(12, 30),
+    sizeof int,
+    {a : int},
+    (1),
+    counter

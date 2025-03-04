@@ -1,0 +1,6 @@
+# Another negative test for statement rule 12 : let
+fun main() : int =
+    let
+        var a : int
+    in
+    end

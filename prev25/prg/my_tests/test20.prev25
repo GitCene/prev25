@@ -1,0 +1,6 @@
+# Test for operator priority
+fun main() : int =
+    +1 * arr[1],
+    -2 * -2,
+    3 + 4 * 2,
+    4 * 2 + 3

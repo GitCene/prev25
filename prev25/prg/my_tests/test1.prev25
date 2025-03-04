@@ -1,0 +1,9 @@
+# Test rules: 3, 4, 5, 6, 23
+typ tip = int
+var ctr : int
+
+fun nil () : int
+
+fun template (a : int) : int 
+
+fun ignoreargs (a : int, b : int) : int = 42, 1000, 8192

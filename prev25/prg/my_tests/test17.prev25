@@ -1,0 +1,8 @@
+# Test for expr rules 23-28
+fun main() : int =
+    42,
+    'a',
+    "string",
+    true,
+    false,
+    null

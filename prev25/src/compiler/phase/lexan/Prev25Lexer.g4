@@ -66,26 +66,37 @@ LBRACKET		: '[' ;
 RBRACKET		: ']' ;
 
 // 3. keywords
+
+//types
+INT				: 'int' ;
 BOOL 			: 'bool' ;
 CHAR			: 'char' ; 
-DO 				: 'do' ;
-ELSE			: 'else' ;
-END				: 'end' ;
-FALSE			: 'false' ;
-FUN				: 'fun' ;
+
+//control flow
 IF				: 'if' ;
-IN				: 'in' ;
-INT				: 'int' ;
-LET				: 'let' ;
-NULL			: 'null' ;
-RETURN			: 'return' ;
-SIZEOF			: 'sizeof' ;
 THEN			: 'then' ;
-TRUE			: 'true' ;
+ELSE			: 'else' ;
+
+DO 				: 'do' ;
+WHILE			: 'while' ;
+
+END				: 'end' ;
+RETURN			: 'return' ;
+
+//decl
+LET				: 'let' ;
 TYP				: 'typ' ;
 VAR				: 'var' ;
+FUN				: 'fun' ;
+
+//const
+TRUE			: 'true' ;
+FALSE			: 'false' ;
 VOID			: 'void' ;
-WHILE			: 'while' ;
+NULL			: 'null' ;
+
+SIZEOF			: 'sizeof' ;
+IN				: 'in' ;
 
 //4. identifiers
 ID				: [a-zA-Z_] [a-zA-Z_0-9]* ;

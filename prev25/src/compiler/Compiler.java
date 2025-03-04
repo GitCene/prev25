@@ -7,6 +7,7 @@ import java.util.*;
 
 import compiler.common.report.*;
 import compiler.phase.lexan.*;
+import compiler.phase.synan.*;
 
 /**
  * The Prev25 compiler.
@@ -28,7 +29,8 @@ public class Compiler {
 	private static final HashMap<String, String> cmdLineOptValues = new HashMap<String, String>();
 
 	/** All valid phases name of the compiler. */
-	private static final Vector<String> phaseNames = new Vector<String>(Arrays.asList("none", "all", "lexan"));
+	private static final Vector<String> phaseNames = new Vector<String>(
+			Arrays.asList("none", "all", "lexan", "synan"));
 
 	/**
 	 * Returns the value of a command line option.
@@ -151,14 +153,21 @@ public class Compiler {
 					break;
 
 				// Lexical analysis.
-				if (cmdLineOptValues.get("--target-phase").equals("lexan")
-						|| cmdLineOptValues.get("--target-phase").equals("all")) {
+				if (cmdLineOptValues.get("--target-phase").equals("lexan")) {
 					try (final LexAn lexan = new LexAn()) {
 						while (lexan.lexer.nextToken().getType() != LexAn.LocLogToken.EOF) {
 						}
 					}
 					break;
 				}
+
+				// Syntax analysis.
+				try (LexAn lexan = new LexAn(); SynAn synan = new SynAn(lexan)) {
+					SynAn.tree = synan.parser.source();
+					synan.log(SynAn.tree);
+				}
+				if (cmdLineOptValues.get("--target-phase").equals("synan"))
+					break;
 
 				// Do not loop... ever.
 				break;

@@ -1,0 +1,43 @@
+# each line should produce an error
+# syn29
+fun a() : void = *10
+fun a() : void = <10
+fun a() : void = >10
+
+# syn30
+fun a() : void = 10 ! 10
+fun a() : void = 10 ^ 10
+
+# syn31
+fun a() : void = a[int]
+fun a() : void = int[a]
+fun a() : void = a[1
+
+# syn32
+fun a() : void = a.10
+fun a() : void = a.int
+
+# syn33
+fun a() : void = int^
+
+# syn34
+fun a() : void = ^int
+
+# syn35
+fun a() : void = a(,)
+fun a() : void = a(a,)
+fun a() : void = a(a,a,)
+fun a() : void = a(a,a
+fun a() : void = aa,a)
+
+# syn36
+fun a() : void = sizeof
+
+# syn37
+fun a() : void = { int : int}
+fun a() : void = { a : 20 }
+fun a() : void = { a int }
+
+# syn38
+fun a() : void = (10
+fun a() : void = 10)

@@ -1,0 +1,11 @@
+# Test for statement rule 9 : while 
+
+fun main() : int =
+    while 1 do end,
+    while 13 do 
+        1 = 1
+    end,
+    while 42 do
+        1 = 2,
+        2 = 3
+    end 

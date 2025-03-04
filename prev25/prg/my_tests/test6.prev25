@@ -1,0 +1,2 @@
+# Negative test for rule 5
+fun name(num1 : int, num2 : int) : int = 12,

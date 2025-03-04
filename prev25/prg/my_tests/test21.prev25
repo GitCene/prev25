@@ -1,0 +1,3 @@
+# Another test for operator priority
+fun main() : int =
+    return !fun1() + -42 % 7 == a & b | c

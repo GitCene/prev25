@@ -1,9 +1,0 @@
-char* _pter
-
-if (pter=="to je string lol () \\ \'") {
-    return 'k'
-}
-
-fun funkcija() void {
-    int st = 9+(-537)
-}

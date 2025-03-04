@@ -1,0 +1,41 @@
+# each line should cause an error
+# syn2
+typ a = 20
+typ 20 = a
+typ a = 
+typ = 20
+
+# syn3
+var 20 : 20
+var : 20
+var a : 20
+var 20 : a
+var a a
+var a
+var int
+
+# syn4
+fun a(a,) : void
+fun a(a : int,) : void
+fun a() void
+fun a(a) : void
+fun a(a, b : int) : void
+fun a(a:int)
+fun a(a)
+fun a( : void)
+fun a(20:void):void
+fun a(a:20):void
+fun a("a":20):void
+fun () : void
+fun (a : int) : void
+fun ()
+
+# syn5
+fun a() = 1
+fun a() : void = 
+fun 20() : void = 1
+fun a(a:) : void = 2
+fun a(:) : = 1
+fun a() : void = void
+fun a()
+fun a() : void = 1,

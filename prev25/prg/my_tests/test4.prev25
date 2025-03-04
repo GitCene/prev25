@@ -1,0 +1,2 @@
+# Negative test for rule 3
+var variable : nottype

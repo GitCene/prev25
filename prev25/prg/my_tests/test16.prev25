@@ -1,0 +1,3 @@
+# Negative test for rule 21 : union
+
+var a : {}
