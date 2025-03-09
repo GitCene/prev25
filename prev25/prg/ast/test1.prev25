@@ -1,0 +1,8 @@
+typ int2 = <first : int, second : int>
+
+fun main () : void = 
+    5 + 5 + 5 + 5 + 5,
+    x = 123,
+    while (true) do 
+        x = x + 7
+    end

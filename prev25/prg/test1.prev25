@@ -1,0 +1,14 @@
+typ a = int
+typ b = bool
+typ c = char 
+typ d = void
+typ e = a 
+typ f = abcde 
+typ g = [20]int
+typ h = [40][10]g
+typ i = (int) : void
+typ j = () : [42]char
+typ k = (bool, g, (int):int) : (bool) : void
+typ l = ^int
+typ m = <a:int, b:int>
+typ n = {a:long, b:int, c:int}

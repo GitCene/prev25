@@ -1,0 +1,76 @@
+# a general test of all the rules
+# == DEFINITIONS == 
+
+typ test_type = int # syn2
+var test_var : test_type # syn3
+
+# syn4
+fun empty() : int 
+fun partial(testparam1 : int) : char 
+fun multiple(testparam1 : char, testparam2 : test_type) : void
+
+# syn5 
+fun main() : void =
+    # == STATEMENTS ==
+    20, 
+    test_var = a + b, # syn7
+    return x | y & s, # syn8
+    # syn9
+    while true do
+        test_var,
+        a = b
+    end,
+    # syn10
+    if true then end,
+    if true then 1, 2, 3 end,
+    # syn 11
+    if false then a, c else b end,
+    if false then else end,
+    # syn 12
+    let
+        typ test = int
+        fun abc() : void
+    in
+        test, abc()
+    end
+
+
+# == TYPES ==
+var a : int # syn13
+var a : char # syn 14
+var a : bool # syn 15
+var a : void # syn16
+var a : b # syn17
+var a : [20]char # syn18
+var a : ^void # syn19
+var a : < b : int, c : char, d : test > # syn20
+var a : { b : int, c : char, d : test } # syn21
+var a : ( int, char, void ) : int # syn21
+var a : () : void # syn21
+
+# == EXPRESSIONS ==
+fun expr() : void = 
+    20, # syn23
+    'a', # syn24
+    "abc", # syn25
+    true, # syn26
+    false, # syn27
+    null, # syn28
+    + 1, - 1, ! false, # syn29
+    # syn30
+    1 & 1 | 1 == 1 | 1 != 1 | 1 < 1 | 1 > 1 | 1 <= 1 | 1 >= 1 * 1 / 1 % 1 % 1 + 1 - 1,
+    a[10], 10[10], a[a], "a1"["a2"], # syn31
+    10.a, # syn32
+    1^, # syn33
+    ^(abc), ^^a, # syn34
+    empty(), partial(test_var), full(a1, a2), # syn35
+    sizeof int, # syn36
+    { test : char }, # syn37
+    ( 123 ), # syn38
+    a # syn39
+
+
+
+
+
+

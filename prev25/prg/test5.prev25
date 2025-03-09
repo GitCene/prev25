@@ -1,0 +1,89 @@
+# ==============================================
+# PREV'25 Comprehensive Test Program
+# Covers lexical elements, declarations, types,
+# statements, expressions, and control flow
+# ==============================================
+
+typ Coordinate = <x: int, y: int, z: int>  # Struct type (SYN:20)
+typ Number = {a:int, b:char}                  # Union type (SYN:21)
+typ IntArray = [32]int                     # Array type (SYN:15)
+
+var global_counter: int
+var NULL_CHAR: char
+var greeting: ^char
+
+fun factorial(n: int): int =               # Function definition (SYN:5)
+    if n <= 1 then
+        1
+    else
+        n * factorial(n - 1)
+    end
+
+fun ui8(a: int, b: int): (int, int): int =   # Function type (SYN:22)
+    let var c : int in
+        c, a - b
+    end
+
+fun main(): void =
+    let                                     # Let statement (SYN:12)
+        typ Point = <gg: int, hhd: int>              # Type alias (SYN:2)
+        var arr: [32]char
+        var ptr: ^int
+        var flag: bool
+        var num: {t42: int}
+    in
+        # Assignment and arithmetic
+        arr[0] = 10 + 2 * 5,                # Array access (SYN:34)
+        ptr = arr[0]^,
+        
+        # Struct operations
+        p1.x = p1.y & ptr^,                  # Struct access (SYN:35), dereference
+        
+        # Control flow
+        while global_counter < 10 do        # While loop (SYN:9)
+            global_counter = global_counter + 1,
+            
+            if flag & (global_counter % 2 == 0) then  # If-else (SYN:11)
+                num = {'A': char}
+            else
+                flag = !flag               # Logical NOT (SYN:29)
+            end
+        end,
+        
+        # Function calls
+        fact5 = factorial(5),                # Function call (SYN:35)
+        
+        # Type operations
+        converted = {num: int},         # Type cast (SYN:37)
+        size = sizeof Coordinate,      # Sizeof (SYN:36)
+        
+        # Complex expressions
+        res = (10 + 2) * 3 / 4 % 5 - 1,
+        logical = (true | false) & (5 == 5) & !(3 != 3),
+
+        # String and character operations
+        new_str = greeting + "!!!",  # String concatenation
+        esc_char = '\'',         # Escaped character
+        
+        return null                         # Return statement (SYN:8)
+    end
+
+# ==============================================
+# Additional edge cases and special syntax
+# ==============================================
+
+fun _underscore_start(): bool =
+    let
+        var _var1 : int
+        var Var2 : int
+    in
+        _var1 <= Var2 | _var1 >= Var2       # Bitwise OR (SYN:30)
+    end
+
+fun complex_types(): [10]^{x: int, y: bool} =
+    let
+        var arr: [10]^{x: int, y: bool}
+    in
+        arr[5] = {^42: ^int},               # Nested type operations
+        arr
+    end
