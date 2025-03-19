@@ -347,7 +347,6 @@ public class NameResolver implements AST.FullVisitor<Object, NameResolver.Mode> 
 
 			allDefnsOfName.addFirst(new ScopedDefn(currDepth, defn));
 			scopes.getFirst().addFirst(name);
-			System.out.println("Added to symtab: " + name);
 		}
 
 		/**
