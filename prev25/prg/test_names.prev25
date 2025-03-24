@@ -1,5 +1,2 @@
-typ a = <b : d>
+typ a = <b : d> 
 typ d = int
-typ f = d
-typ h = f
-typ b = <b : d, c : a >

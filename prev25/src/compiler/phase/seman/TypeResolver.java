@@ -56,8 +56,15 @@ public class TypeResolver implements AST.FullVisitor<TYP.Type, TypeResolver.Mode
 			case Mode.SECOND:
 				if ((typDefn.type != null) || (!compiler.Compiler.devMode())) {
 					defnType = typDefn.type.accept(this, mode);
-					SemAn.isType.put(typDefn, defnType);
-					return defnType;
+					TYP.NameType defnNameType = new TYP.NameType(typDefn.name); 
+					System.out.print("THis should not b enull: ");
+					System.out.println(defnNameType);
+					System.out.print("Or this:");
+					System.out.println(defnType);
+
+					defnNameType.setActType(defnType);
+					SemAn.isType.put(typDefn, defnNameType);
+					return defnNameType;
 				}
 			default:
 				throw new Report.InternalError();
