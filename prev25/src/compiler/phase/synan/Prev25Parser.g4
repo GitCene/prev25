@@ -39,6 +39,7 @@ parser grammar Prev25Parser;
 			return new AST.ExtFunDefn(this.location, this.name, this.pars, this.type);
 		}
 
+		// Todo: replace 'this.location' with 'loc(this.location, stmts)'
 		public AST.DefFunDefn toDefFunDefn(List<AST.Stmt> stmts) {
 			return new AST.DefFunDefn(this.location, this.name, this.pars, this.type, stmts);
 		}

@@ -508,8 +508,11 @@ public class TYP {
 		 * @return The actual type this named type represents.
 		 */
 		public Type type() {
-			if (this.actType == null)
+			if (this.actType == null) {
+				System.out.print(this.toString());
+				System.out.println(" MIP!");
 				throw new Report.InternalError();
+			}
 			return actType;
 		}
 

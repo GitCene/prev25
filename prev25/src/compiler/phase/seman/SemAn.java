@@ -116,11 +116,15 @@ public class SemAn extends Phase {
 		 * @return The value (or {@code null} if the value is not found).
 		 */
 		public Value get(final AST.Node node) {
+			System.out.println(node);
 			if (!(keyChecker.test(node)))
 				throw new Report.InternalError();
 			int id = node.id;
-			while (id >= mapping.size())
+			while (id >= mapping.size()) {
+				System.out.println("can't get node: " + node.toString());
+				System.out.println("Returning null becaue id ? ah?");
 				return null;
+			}
 			return mapping.get(id);
 		}
 
