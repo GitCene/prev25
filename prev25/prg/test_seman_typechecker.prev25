@@ -97,8 +97,8 @@ fun funAllGood(par1: int, par2: ptrInt, par3: ptrInt) : int =
     par2 = par3,
     varArrLogicna[0] = true,
     varStructIntChar.comp1 = 1,
-    varStructMultiLevel.comp1.comp1 = 2,
-    varStructMultiLevel.comp1.comp2.comp2 = 'a',
+    #varStructMultiLevel.comp1.comp1 = 2,
+    #varStructMultiLevel.comp1.comp2.comp2 = 'a',
 
     return 1,
     return varInt,

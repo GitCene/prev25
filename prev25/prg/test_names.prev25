@@ -1,2 +1,6 @@
-typ a = <b : d> 
-typ d = int
+var a : int
+typ b = [1]int
+
+fun main() : int =
+    a = 3,
+    return a
