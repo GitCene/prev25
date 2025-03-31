@@ -167,6 +167,8 @@ public class TypeResolver implements AST.FullVisitor<TYP.Type, TypeResolver.Mode
 					//if (compType == TYP.VoidType.type)
 					//	throw new Report.Error(compDefn, "Cannot have void type as record component.");
 					//SemAn.ofType.put(compDefn, compType);
+					//SemAn.isConst.put(compDefn, false);
+					//SemAn.isAddr.put(compDefn, true);
 				}
 				return SemAn.isType.get(strType);
 			default:
@@ -185,12 +187,14 @@ public class TypeResolver implements AST.FullVisitor<TYP.Type, TypeResolver.Mode
 				TYP.UniType type = new TYP.UniType(compTypes);
 				SemAn.isType.put(uniType, type);
 				return type;
-			case Mode.SECOND:
+				case Mode.SECOND:
 				for (final AST.CompDefn compDefn : uniType.comps) {
 					TYP.Type compType = compDefn.type.accept(this, mode);
 					//if (compType == TYP.VoidType.type)
 					//	throw new Report.Error(compDefn, "Cannot have void type as record component.");
 					//SemAn.ofType.put(compDefn, compType);
+					//SemAn.isConst.put(compDefn, false);
+					//SemAn.isAddr.put(compDefn, true);
 				}
 				return SemAn.isType.get(uniType);
 			default:
@@ -210,6 +214,7 @@ public class TypeResolver implements AST.FullVisitor<TYP.Type, TypeResolver.Mode
 					parTypes.addLast(parType.accept(this, mode));
 				TYP.FunType type = new TYP.FunType(parTypes, resType);
 				SemAn.isType.put(funType, type);
+				
 				return type;
 			case Mode.SECOND:
 				funType.resType.accept(this, mode);

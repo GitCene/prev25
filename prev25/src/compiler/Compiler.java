@@ -10,6 +10,7 @@ import compiler.phase.lexan.*;
 import compiler.phase.synan.*;
 import compiler.phase.abstr.*;
 import compiler.phase.seman.*;
+import compiler.phase.memory.*;
 
 /**
  * The Prev25 compiler.
@@ -32,7 +33,7 @@ public class Compiler {
 
 	/** All valid phases name of the compiler. */
 	private static final Vector<String> phaseNames = new Vector<String>(
-			Arrays.asList("none", "all", "lexan", "synan", "abstr", "seman"));
+			Arrays.asList("none", "all", "lexan", "synan", "abstr", "seman", "memory"));
 
 	/**
 	 * Returns the value of a command line option.
@@ -191,6 +192,17 @@ public class Compiler {
 					Abstr.tree.accept(logger, "Nodes<Defn>");
 				}
 				if (cmdLineOptValues.get("--target-phase").equals("seman"))
+					break;
+
+				// Memory.
+				try (Memory memory = new Memory()) {
+					Abstr.tree.accept(new MemEvaluator(), null);
+					Abstr.Logger logger = new Abstr.Logger(memory.logger);
+					logger.addSubvisitor(new SemAn.Logger(memory.logger));
+					logger.addSubvisitor(new Memory.Logger(memory.logger));
+					Abstr.tree.accept(logger, "Nodes<Defn>");
+				}
+				if (cmdLineOptValues.get("--target-phase").equals("memory"))
 					break;
 
 				// Do not loop... ever.

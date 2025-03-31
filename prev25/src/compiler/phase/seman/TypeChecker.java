@@ -264,10 +264,6 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 	}
 
 	private boolean equArr(TYP.Type type) {
-		System.out.println("Checking array equ : " + type.toString());
-		System.out.println(type instanceof TYP.ArrType);
-		System.out.println(type instanceof TYP.NameType);
-		
 		return type instanceof TYP.ArrType ||
 			(type instanceof TYP.NameType && equArr(((TYP.NameType)type).type())  );
 	}
@@ -295,8 +291,6 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 		//D is null only on toplevel.
 		boolean mainFound = false;
 		for (final AST.Node node : nodes) {
-			System.out.print("Looking at node: ");
-			System.out.println(node.location());
 			if ((node != null) || (!compiler.Compiler.devMode())) {
 				TYP.Type nodeType = node.accept(this, node);
 
@@ -336,6 +330,8 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 		TYP.Type varType = SemAn.isType.get(varDefn.type);
 		// Should I be putting varDefn.name, or varDefn ?!?!? 
 		SemAn.ofType.put(varDefn, varType);
+		//SemAn.isConst.put(varDefn, false);
+		//SemAn.isAddr.put(varDefn, true);
 		return TYP.VoidType.type;
 	}
 
@@ -344,6 +340,8 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 	public TYP.Type visit(AST.ParDefn parDefn, AST.Node D) {
 		TYP.Type parType = SemAn.isType.get(parDefn.type);
 		SemAn.ofType.put(parDefn, parType);
+		//SemAn.isConst.put(parDefn, false);
+		//SemAn.isAddr.put(parDefn, true);
 		return parType;
 	}
 	
@@ -373,12 +371,15 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 			AST.DefFunDefn defFunDefn = (AST.DefFunDefn) funDefn;
 			for (final AST.Stmt stmt : defFunDefn.stmts) {
 				TYP.Type stmtType = stmt.accept(this, defFunDefn);
-				if (stmtType != TYP.VoidType.type) // && stmtType != null)
-					throw new Report.Error(stmt, "Malformed statement. How?");
+				// Don't do this, because expressions are statement and are not void type.
+				//if (stmtType != TYP.VoidType.type) // && stmtType != null)
+					//throw new Report.Error(stmt, "Malformed statement. How?");
 			}
 		}
 		TYP.FunType funType = new TYP.FunType(parTypes, resType);
 		SemAn.ofType.put(funDefn, funType);
+		//SemAn.isConst.put(funDefn, false);
+		//SemAn.isAddr.put(funDefn, false);
 		return TYP.VoidType.type;
 	}
 
@@ -387,10 +388,6 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 	@Override
 	public TYP.Type visit(AST.AssignStmt assStmt, AST.Node D) {
 		TYP.Type dstType = assStmt.dstExpr.accept(this, D);
-		System.out.println("three acts: ");
-		System.out.println(assStmt);
-		System.out.println(assStmt.dstExpr);
-		System.out.println(dstType);
 		TYP.Type srcType = assStmt.srcExpr.accept(this, D);
 		if (!legalTypeEquiv(dstType))
 			throw new Report.Error(assStmt.dstExpr, "Illegal type : " + dstType.toString());
@@ -398,6 +395,8 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 			throw new Report.Error(assStmt.srcExpr, "Illegal type : " + srcType.toString());
 		if (!coe(srcType, dstType)) 
 			throw new Report.Error(assStmt, "Cannot coerce " + srcType.toString() + " to " + dstType.toString());
+		if (!SemAn.isAddr.get(assStmt.dstExpr))
+			throw new Report.Error(assStmt, "Destination expression not an lvalue: " + assStmt.dstExpr.toString());
 		return TYP.VoidType.type;
 	}
 
@@ -472,6 +471,8 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 		if (compType == TYP.VoidType.type)
 			throw new Report.Error(compDefn, "Cannot have void type as record component.");
 		SemAn.ofType.put(compDefn, compType);
+		//SemAn.isConst.put(compDefn, false);
+		//SemAn.isAddr.put(compDefn, true);
 		return compType;
 	}
 
@@ -509,8 +510,9 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 			default:
 				throw new Report.InternalError();
 		}
-		
 		SemAn.ofType.put(atomExpr, type);
+		SemAn.isConst.put(atomExpr, true);
+		SemAn.isAddr.put(atomExpr, false);
 		return type;
 	}
 
@@ -526,10 +528,14 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 			case AST.PfxExpr.Oper.SUB:
 				if (!equ(subType, TYP.IntType.type)) complain(pfxExpr, subType);
 				SemAn.ofType.put(pfxExpr, subType);
+				SemAn.isConst.put(pfxExpr, SemAn.isConst.get(pfxExpr.subExpr));
+				SemAn.isAddr.put(pfxExpr, false);
 				return subType;
 			case AST.PfxExpr.Oper.NOT:
 				if (!equ(subType, TYP.BoolType.type)) complain(pfxExpr, subType);
 				SemAn.ofType.put(pfxExpr, subType);
+				SemAn.isConst.put(pfxExpr, SemAn.isConst.get(pfxExpr.subExpr));
+				SemAn.isAddr.put(pfxExpr, false);
 				return subType;
 			// TYP:35
 			case AST.PfxExpr.Oper.PTR:
@@ -537,6 +543,8 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 					throw new Report.Error(pfxExpr.subExpr, "Cannot reference void type.");
 				TYP.PtrType ptrType = new TYP.PtrType(subType);
 				SemAn.ofType.put(pfxExpr, ptrType);
+				SemAn.isConst.put(pfxExpr, false);
+				SemAn.isAddr.put(pfxExpr, false);
 				return ptrType;
 		}
 		throw new Report.InternalError();
@@ -591,6 +599,8 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 				break;
 		}
 		SemAn.ofType.put(binExpr, resType);
+		SemAn.isConst.put(binExpr, SemAn.isConst.get(binExpr.fstExpr) && SemAn.isConst.get(binExpr.sndExpr));
+		SemAn.isAddr.put(binExpr, false);
 		return resType;
 	}
 
@@ -610,6 +620,8 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 		}
 		TYP.ArrType arrExprType = (TYP.ArrType)arrType;
 		SemAn.ofType.put(arrExpr, arrExprType.elemType);
+		SemAn.isConst.put(arrExpr, false);
+		SemAn.isAddr.put(arrExpr, true);
 		return arrExprType.elemType;
 	}
 
@@ -627,6 +639,8 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 					throw new Report.Error(sfxExpr.subExpr, "Cannot dereference void type.");
 				
 				SemAn.ofType.put(sfxExpr, subPointerType.baseType);
+				SemAn.isConst.put(sfxExpr, false);
+				SemAn.isAddr.put(sfxExpr, true);
 				return subPointerType.baseType;
 		}
 		throw new Report.InternalError();
@@ -652,6 +666,8 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 			if (compDefn.name.equals(fieldname)) {
 				TYP.Type exprType = SemAn.ofType.get(compDefn);
 				SemAn.ofType.put(compExpr, exprType);
+				SemAn.isConst.put(compExpr, false);
+				SemAn.isAddr.put(compExpr, true);
 				return exprType;
 			}
 		}
@@ -679,6 +695,8 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 			throw new Report.Error(callExpr, "Mismatched number of arguments in function call for type : " + funFunType.toString());
 		TYP.Type resType = funFunType.resType;
 		SemAn.ofType.put(callExpr, resType);
+		SemAn.isConst.put(callExpr, false);
+		SemAn.isAddr.put(callExpr, false);
 		return resType;
 	}
 
@@ -688,6 +706,8 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 		if (equ(exprType, TYP.VoidType.type))
 			throw new Report.Error(sizeExpr, "Cannot get size of void.");
 		SemAn.ofType.put(sizeExpr, TYP.IntType.type);
+		SemAn.isConst.put(sizeExpr, true);
+		SemAn.isAddr.put(sizeExpr, false);
 		return TYP.IntType.type;
 	}
 
@@ -700,6 +720,8 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 		if (equ(exprType, TYP.VoidType.type))
 			throw new Report.Error(castExpr, "Cannot cast expression of voidy type : " + exprType.toString());
 		SemAn.ofType.put(castExpr, destType);
+		SemAn.isConst.put(castExpr, SemAn.isConst.get(castExpr.expr));
+		SemAn.isAddr.put(castExpr, SemAn.isAddr.get(castExpr.expr));
 		return destType;
 	}
 
@@ -710,6 +732,16 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 		AST.Defn defnAt = SemAn.defAt.get(nameExpr);
 		TYP.Type defnType = SemAn.ofType.get(defnAt);
 		SemAn.ofType.put(nameExpr, defnType);
+		if (defnAt instanceof AST.VarDefn) {
+			SemAn.isConst.put(nameExpr, false);
+			SemAn.isAddr.put(nameExpr, true);
+		} else if (defnAt instanceof AST.ParDefn) {
+			SemAn.isConst.put(nameExpr, false);
+			SemAn.isAddr.put(nameExpr, true);
+		} else if (defnAt instanceof AST.FunDefn) {
+			SemAn.isConst.put(nameExpr, false);
+			SemAn.isAddr.put(nameExpr, false);
+		}
 		return defnType;
 	}
 

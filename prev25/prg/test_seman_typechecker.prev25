@@ -107,8 +107,8 @@ fun funAllGood(par1: int, par2: ptrInt, par3: ptrInt) : int =
     return sizeof ptrInt,
     #return sizeof structRecursive2NoPtr,
 
-    while true do ^par1 = ^15 end,
-    while varLogicna do ^par1 = ^-1 end,
+    while true do par1 = 15 end,
+    while varLogicna do par1 = -1 end,
 
     if !varLogicna then varInt = +2 end,
     if true & varLogicna then varInt = +2 end,
