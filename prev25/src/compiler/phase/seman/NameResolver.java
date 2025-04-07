@@ -191,6 +191,8 @@ public class NameResolver implements AST.FullVisitor<Object, NameResolver.Mode> 
 				} catch (CannotInsNameException e) {
 					throw new Report.Error(compDefn, "Duplicate component name: " + compDefn.name);
 				}
+				if ((compDefn.type != null) || (!compiler.Compiler.devMode()))
+					compDefn.type.accept(this, mode);
 				return null;
 			case Mode.RESOLVE:
 				if ((compDefn.type != null) || (!compiler.Compiler.devMode()))
@@ -218,7 +220,7 @@ public class NameResolver implements AST.FullVisitor<Object, NameResolver.Mode> 
 			case Mode.RESOLVE:
 				symbTable.newScope();
 				if (recType.comps != null || (!compiler.Compiler.devMode()))
-					recType.comps.accept(this, Mode.DECLARE);
+					recType.comps.accept(this, mode);
 				symbTable.oldScope();
 				return null;
 			default:

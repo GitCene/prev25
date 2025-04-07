@@ -296,7 +296,8 @@ public class TypeResolver implements AST.FullVisitor<TYP.Type, TypeResolver.Mode
 			case Mode.SECOND:
 				type = (TYP.NameType) SemAn.isType.get(nameType);
 				AST.Defn def = SemAn.defAt.get(nameType);
-				
+				if (def == null)
+					throw new Report.Error(nameType, "Odd behaviour involving : " + nameType.name);
 				if (circularRecursionTracker.add(nameType.id) == false) {
 					// We have come back to the same name we have already seen.
 					// Maybe there was valid recursion along the way:

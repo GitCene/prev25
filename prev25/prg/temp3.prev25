@@ -1,0 +1,47 @@
+####    TYPE DEFINITION    ####
+##  BASE TYPE  ##
+typ stevilo = int
+typ crka = char
+typ logicna = bool
+typ praznina = void
+
+
+##  POINTER TYPE  ##
+typ ptrInt = ^int
+typ ptrChar = ^char
+typ ptrBool = ^bool
+typ ptrCrka = ^crka
+
+typ ptrPtrInt = ^^int
+typ ptrPtrStevilo = ^^stevilo
+typ ptrPtrIntIndirect = ^ptrInt
+typ ptrArrInt = ^[1]int
+typ ptrArrIntIndirect = ^[1]stevilo
+typ ptrArrArrInt = ^[1][1]int
+typ ptrArrArrIntIndirect = ^[1]arrInt
+
+# typ ptrVoid = ^void #ERR1: Void pointer
+# typ ptrPraznina = ^praznina #ERR2: Indirect void pointer
+
+
+##  ARRAY TYPE ##
+typ arrInt = [1]int
+typ arrChar = [1]char
+typ arrBool = [1]bool
+typ arrLogicna = [1]logicna
+
+typ arrPtrInt = [1]^int
+typ arrPtrIntIndirect = [1]ptrInt
+typ arrArrInt = [1][1]int
+
+# typ arrVoid = [1]void #ERR3: Void array
+# typ arrPraznina = [1]praznina #ERR4: Indirect void array
+# typ arrTooSmall = [0]int #ERR5: Too small array size
+
+
+##  STRUCT TYPE  ##
+typ structInt = < comp1: int >
+typ structIntChar = < comp1: int, comp2: char >
+typ structSteviloArrIntPtrArrArrInt = < comp1: stevilo, comp2: arrInt, comp3: ptrArrArrInt >
+
+fun main() : int = 1

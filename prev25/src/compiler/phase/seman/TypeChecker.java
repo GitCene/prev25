@@ -15,8 +15,8 @@ import compiler.phase.abstr.AST.NameType;
  * 
  * @author bostjan.slivnik@fri.uni-lj.si
  * todo: remove s.o.p. in TYP.java and SemAn.java
- * TODO: resolve duplicate names in structs?
- * 
+ * TODO: resolve duplicate names in structs? done.
+ *  TODO: check array thing which you didn't check in type resolver. 
  */
 public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 
@@ -332,6 +332,7 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 		SemAn.ofType.put(varDefn, varType);
 		//SemAn.isConst.put(varDefn, false);
 		//SemAn.isAddr.put(varDefn, true);
+		varDefn.type.accept(this, D);
 		return TYP.VoidType.type;
 	}
 
@@ -342,6 +343,7 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 		SemAn.ofType.put(parDefn, parType);
 		//SemAn.isConst.put(parDefn, false);
 		//SemAn.isAddr.put(parDefn, true);
+		parDefn.type.accept(this, D);
 		return parType;
 	}
 	
@@ -462,20 +464,37 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 	}
 
 	// ---------- Types ----------
-	// - Handled in TypeResolver (TYP:11-19).
+	// - Handled in TypeResolver (TYP:11-19) to some extent.
 
-	// In case we won't handle for records.
 	@Override
 	public TYP.Type visit(AST.CompDefn compDefn, AST.Node D) {
 		TYP.Type compType = SemAn.isType.get(compDefn.type);
 		if (compType == TYP.VoidType.type)
 			throw new Report.Error(compDefn, "Cannot have void type as record component.");
+		compDefn.type.accept(this, D);
 		SemAn.ofType.put(compDefn, compType);
 		//SemAn.isConst.put(compDefn, false);
 		//SemAn.isAddr.put(compDefn, true);
 		return compType;
 	}
+/*
+ * 
+ @Override 
+ public TYP.Type visit(AST.StrType strType, AST.Node D) {
+	return visit_helper(strType, D);
+}
 
+@Override 
+public TYP.Type visit(AST.UniType uniType, AST.Node D) {
+	return visit_helper(uniType, D);
+}
+
+public TYP.Type visit_helper(AST.RecType recType, AST.Node D) {
+	recType.comps.accept(this, D);
+	return TYP.VoidType.type;
+}
+
+*/
 	// ---------- Expressions ----------
 	// TYP:20-25
 	@Override
@@ -615,7 +634,8 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 		if (!equ(idxType, TYP.IntType.type))
 			throw new Report.Error(arrExpr.idx, "Invalid type of indexing expression : " + idxType.toString());
 		
-		if (arrType instanceof TYP.NameType) {
+		//if (arrType instanceof TYP.NameType) {
+		while (arrType instanceof TYP.NameType) {
 			arrType = ((TYP.NameType)arrType).type();
 		}
 		TYP.ArrType arrExprType = (TYP.ArrType)arrType;
@@ -632,7 +652,7 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 		switch(sfxExpr.oper) {
 			case AST.SfxExpr.Oper.PTR:
 				if (!(equPtr(subType))) complain(sfxExpr.subExpr, subType);
-				if (subType instanceof TYP.NameType)
+				while (subType instanceof TYP.NameType)
 					subType = ((TYP.NameType)subType).type();
 				TYP.PtrType subPointerType = (TYP.PtrType) subType;
 				if (equ(subPointerType.baseType, TYP.VoidType.type))
@@ -650,6 +670,7 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 	@Override
 	public TYP.Type visit(AST.CompExpr compExpr, AST.Node D) {
 		//TODO: handle multilevel structs access.
+		// Problem is, can be a NameExpr, but is CompExpr if multilevel.
 		AST.NameExpr nameOfStructVar = (AST.NameExpr) (compExpr.recExpr);
 		TYP.Type recType = compExpr.recExpr.accept(this, D);
 		if (!(equStr(recType) || equUni(recType)))
@@ -681,7 +702,7 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 			throw new Report.Error(callExpr, "COMPILER BUG: Calling functions which are defined lower in the file is currently bugged.\nMutually recursive functions as well do not work.");
 		if (!equFun(funType)) 
 			throw new Report.Error(callExpr, "Not a callable type : " + funType); //.toString()); // TODO: remove these tostrings
-		if (funType instanceof TYP.NameType) {
+		while (funType instanceof TYP.NameType) {
 			funType = ((TYP.NameType)funType).type();
 		}
 		TYP.FunType funFunType = (TYP.FunType) funType;

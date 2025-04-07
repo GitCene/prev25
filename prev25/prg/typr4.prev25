@@ -1,11 +1,14 @@
-# Resolve duplicate fields in structs!
+# Resolve duplicate fields in structs! DONE 
+# Make structs check CompDefns deeper!
 
 typ d = <a : int, b : <a : int, c : int>>
 
-#var b : d 
+var b : d 
 
+var c : <a:int, b:<a:int, b:<c:int>>>
 
-fun f(a: int, b:bool, d:bool) : int = 1
+# TODO: Should this struct without a pointer, be an illegal type?
+fun f(a: int, b:bool, d:^<a:int, b:<c:int, d:<a:int>>>) : int = 1
 
 fun main() : int =
     return b.a
