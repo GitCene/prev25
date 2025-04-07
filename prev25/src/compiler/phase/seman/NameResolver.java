@@ -60,6 +60,7 @@ public class NameResolver implements AST.FullVisitor<Object, NameResolver.Mode> 
 			case Mode.DECLARE:
 				try {
 					symbTable.ins(typDefn.name, typDefn);
+					typDefn.type.accept(this, mode);
 				} catch (CannotInsNameException e) {
 					throw new Report.Error(typDefn, "Name '" + typDefn.name + "' already exists in this scope.");
 				}
@@ -181,6 +182,49 @@ public class NameResolver implements AST.FullVisitor<Object, NameResolver.Mode> 
 	}
 
 	//public Object visit(AST.CompDefn compDefn, NameResolver.Mode mode) : todo.
+	@Override
+	public Object visit(AST.CompDefn compDefn, NameResolver.Mode mode) {
+		switch (mode) {
+			case Mode.DECLARE:
+				try {
+					symbTable.ins(compDefn.name, compDefn);	
+				} catch (CannotInsNameException e) {
+					throw new Report.Error(compDefn, "Duplicate component name: " + compDefn.name);
+				}
+				return null;
+			case Mode.RESOLVE:
+				if ((compDefn.type != null) || (!compiler.Compiler.devMode()))
+					compDefn.type.accept(this, mode);
+				return null;
+			default:
+				throw new Report.InternalError();
+		}
+	}
+
+	@Override
+	public Object visit(AST.StrType strType, NameResolver.Mode mode) {
+		return visit_helper(strType, mode);
+	}
+	
+	@Override
+	public Object visit(AST.UniType uniType, NameResolver.Mode mode) {
+		return visit_helper(uniType, mode);
+	}
+	
+	public Object visit_helper(AST.RecType recType, NameResolver.Mode mode) {
+		switch (mode) {
+			case Mode.DECLARE:
+				return null;
+			case Mode.RESOLVE:
+				symbTable.newScope();
+				if (recType.comps != null || (!compiler.Compiler.devMode()))
+					recType.comps.accept(this, Mode.DECLARE);
+				symbTable.oldScope();
+				return null;
+			default:
+				throw new Report.InternalError();
+		}
+	}
 	
 	// ----- Statements -----
 

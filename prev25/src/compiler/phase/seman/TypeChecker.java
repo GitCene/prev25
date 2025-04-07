@@ -676,9 +676,11 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 
 	// TYP:38
 	public TYP.Type visit(AST.CallExpr callExpr, AST.Node D) {
-		TYP.Type funType = callExpr.funExpr.accept(this, D);
+		TYP.Type funType = callExpr.funExpr.accept(this, D).actualType();
+		if (funType == null)
+			throw new Report.Error(callExpr, "COMPILER BUG: Calling functions which are defined lower in the file is currently bugged.\nMutually recursive functions as well do not work.");
 		if (!equFun(funType)) 
-			throw new Report.Error(callExpr, "Not a callable type : " + funType.toString());
+			throw new Report.Error(callExpr, "Not a callable type : " + funType); //.toString()); // TODO: remove these tostrings
 		if (funType instanceof TYP.NameType) {
 			funType = ((TYP.NameType)funType).type();
 		}

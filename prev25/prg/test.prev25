@@ -1,2 +1,0 @@
-fun main(a : int, b : int) : int = 
-    a + b

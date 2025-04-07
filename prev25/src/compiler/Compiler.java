@@ -186,7 +186,7 @@ public class Compiler {
 				try (SemAn seman = new SemAn()) {
 					Abstr.tree.accept(new NameResolver(), null);
 					Abstr.tree.accept(new TypeResolver(), null);
-					Abstr.tree.accept(new TypeChecker(), null);
+					//Abstr.tree.accept(new TypeChecker(), null);
 					Abstr.Logger logger = new Abstr.Logger(seman.logger);
 					logger.addSubvisitor(new SemAn.Logger(seman.logger));
 					Abstr.tree.accept(logger, "Nodes<Defn>");
@@ -196,7 +196,7 @@ public class Compiler {
 
 				// Memory.
 				try (Memory memory = new Memory()) {
-					Abstr.tree.accept(new MemEvaluator(), null);
+					//Abstr.tree.accept(new MemEvaluator(), null);
 					Abstr.Logger logger = new Abstr.Logger(memory.logger);
 					logger.addSubvisitor(new SemAn.Logger(memory.logger));
 					logger.addSubvisitor(new Memory.Logger(memory.logger));

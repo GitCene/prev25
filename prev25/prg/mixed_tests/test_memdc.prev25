@@ -1,0 +1,55 @@
+typ extType1 = < comp1: int, comp2: (int): bool >
+typ extType2 = { comp1: int, comp2: ^[10]int }
+typ extType3 = < comp1: int, comp2: < comp1: int, comp2: ^int >, comp3: bool >
+typ extType4 = < comp1: bool, comp2: bool >
+typ extType5 = (bool) : (^< comp1: bool >) : ^< comp1: bool, comp2: int >
+typ extType6 = (bool) : (^{ comp1: bool }) : ^{ comp1: bool, comp2: int }
+
+var extVar1: int
+var extVar2: extType1
+
+fun extFun1(par1: ^char): ^char
+
+fun main() : int =
+    let
+        var intVar1: bool
+        var intVar2: ^char
+        var intVar3: { comp1: bool, comp2: int }
+    in
+        intVar1 = true,
+        intVar2 = "Test",
+        return 1
+    end
+
+fun extFun2(par1: int, par2: ^char) : int =
+    let
+        typ intType1 = < comp1: < comp1: char, comp2: < comp1: ^int, comp2: ^extType2 > >, comp2: int >
+        var intVar1: extType2
+        var intVar2: extType3
+        var intVar3: intType1
+        var intVar4: < comp1: < comp1: char, comp2: < comp1: ^int, comp2: ^extType2 > >, comp2: int >
+        fun intFun1(par1: int, par2: ^extType1) : bool =
+            #return par1 == -par2^.comp1 | intFun2(true)
+            return par1 == par1
+        fun intFun2(par1: bool) : bool =
+            let
+                var intVar1: int
+            in
+                if intVar1 == 10 then return true end,
+                intVar2.comp1 = extFun3(10) #Why not possible to call this?
+            end,
+            par1 = false,
+            let
+                var intVar2: int
+            in
+                extVar3 = "Hello world\\tTest\\n",
+                extFun2(intVar2, extVar3)
+            end
+    in
+        intVar1.comp1 = 1
+    end,
+    par1 = par1 + sizeof extType1
+
+fun extFun3(par1: int) : int
+
+var extVar3: ^char

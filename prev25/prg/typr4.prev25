@@ -1,0 +1,11 @@
+# Resolve duplicate fields in structs!
+
+typ d = <a : int, b : <a : int, c : int>>
+
+#var b : d 
+
+
+fun f(a: int, b:bool, d:bool) : int = 1
+
+fun main() : int =
+    return b.a

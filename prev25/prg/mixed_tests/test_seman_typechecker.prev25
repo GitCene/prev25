@@ -1,0 +1,147 @@
+####    TYPE DEFINITION    ####
+##  BASE TYPE  ##
+typ stevilo = int
+typ crka = char
+typ logicna = bool
+typ praznina = void
+
+
+##  POINTER TYPE  ##
+typ ptrInt = ^int
+typ ptrChar = ^char
+typ ptrBool = ^bool
+typ ptrCrka = ^crka
+
+typ ptrPtrInt = ^^int
+typ ptrPtrStevilo = ^^stevilo
+typ ptrPtrIntIndirect = ^ptrInt
+typ ptrArrInt = ^[1]int
+typ ptrArrIntIndirect = ^[1]stevilo
+typ ptrArrArrInt = ^[1][1]int
+typ ptrArrArrIntIndirect = ^[1]arrInt
+
+# typ ptrVoid = ^void #ERR1: Void pointer
+# typ ptrPraznina = ^praznina #ERR2: Indirect void pointer
+
+
+##  ARRAY TYPE ##
+typ arrInt = [1]int
+typ arrChar = [1]char
+typ arrBool = [1]bool
+typ arrLogicna = [1]logicna
+
+typ arrPtrInt = [1]^int
+typ arrPtrIntIndirect = [1]ptrInt
+typ arrArrInt = [1][1]int
+
+# typ arrVoid = [1]void #ERR3: Void array
+# typ arrPraznina = [1]praznina #ERR4: Indirect void array
+# typ arrTooSmall = [0]int #ERR5: Too small array size
+
+
+##  STRUCT TYPE  ##
+typ structInt = < comp1: int >
+typ structIntChar = < comp1: int, comp2: char >
+typ structSteviloArrIntPtrArrArrInt = < comp1: stevilo, comp2: arrInt, comp3: ptrArrArrInt >
+typ structMultiLevel = < comp1: < comp1: int, comp2: < comp1: int, comp2: char > >, comp2: char >
+typ structRecursive1Ptr = < comp1: ^structRecursive2Ptr >
+typ structRecursive2Ptr = < comp1: ^structRecursive1Ptr >
+#typ structRecursive1NoPtr = < comp1: structRecursive2NoPtr >
+#typ structRecursive2NoPtr = < comp1: structRecursive1NoPtr >
+
+# typ structVoid = < comp1: void > #ERR6: Void component
+
+
+##  UNION TYPE  ##
+typ unionInt = { comp1: int }
+typ unionIntChar = { comp1: int, comp2: char }
+typ unionSteviloArrIntPtrArrArrInt = { comp1: stevilo, comp2: arrInt, comp3: ptrArrArrInt }
+
+# typ unionVoid = { comp1: void } #ERR7: Void component
+
+
+##  FUNCTION TYPE  ##
+typ funIntToInt = (int) : int
+typ funSteviloarrPtrIntToVoid = (stevilo, ptrInt) : void
+typ funSteviloPtrPtrPtrIntToVoid = (stevilo, ptrPtrIntIndirect) : void
+typ funFunIntToArrArrIntToFunLogicnaToPtrUnionChar = ((int) : ^[1][1]int) : (logicna): ^{comp1: char}
+
+# typ funVoidParameter = (void) : void #ERR8: Void parameter
+# typ funStructParameter = (< comp1: int >) : void #ERR9: Struct parameter
+# typ funUnionParameter = ({ comp1: int }) : void #ERR10: Union parameter
+# typ funArrayParameter = ([1]stevilo) : void #ERR11: Array parameter
+# typ funStructReturn = (int) : < comp1: int > #ERR12: Struct return type
+# typ funUnionReturn = (int) : { comp1: int } #ERR13: Union return type
+# typ funArrayReturn = (int) : [1]stevilo #ERR14: Array return type
+
+
+####    VARIABLE DEFINITION    ####
+var varInt : int
+var varLogicna : logicna
+var varPtrInt : ptrInt
+var varPtrCrka : ptrCrka
+var varPtrArrArrIntIndirect : ptrArrArrIntIndirect
+var varArrLogicna : arrLogicna
+var varStructIntChar : structIntChar
+var varStructMultiLevel : structMultiLevel
+var varFunIntToInt : funIntToInt
+
+# var varVoid : void #ERR15: Void variable definition
+
+
+####    FUNCTION DEFINITION & STATEMENT    ####
+fun funAllGood(par1: int, par2: ptrInt, par3: ptrInt) : int =
+    varInt = 1,
+    par1 = varInt,
+    varInt = par1,
+    par2 = par3,
+    varArrLogicna[0] = true,
+    varStructIntChar.comp1 = 1,
+    #varStructMultiLevel.comp1.comp1 = 2,
+    #varStructMultiLevel.comp1.comp2.comp2 = 'a',
+
+    return 1,
+    return varInt,
+    return par1,
+    return varPtrInt^,
+    return sizeof ptrInt,
+    #return sizeof structRecursive2NoPtr,
+
+    while true do par1 = 15 end,
+    while varLogicna do par1 = -1 end,
+
+    if !varLogicna then varInt = +2 end,
+    if true & varLogicna then varInt = +2 end,
+    if varLogicna | false then varInt = -2 end,
+    if 'a' == 'b' then varInt = varInt * 2 end,
+    if varInt != 10 then varInt = varInt / varInt end,
+    if 10 != varInt then varInt = varInt % varInt end,
+    if varStructIntChar.comp1 > 10 then varInt = varInt + varInt end,
+    if varFunIntToInt(10) <= varInt then varInt = varInt - varInt end,
+
+    return {varFunIntToInt : int}
+
+
+fun funAllBad(par1: int, par2: ptrInt, par3: ptrInt) : int =
+    # varInt = true, #ERR16: Non-coercible types assignment
+    # par2 = ^15, #ERR17: Non-coercible types assignment
+
+    # return 'a', #ERR18: Non-coercible function result and return types
+    # return par2, #ERR19: Non-coercible function result and return types
+
+    # while 1 do return 1 end, #ERR20: Non-boolean expression as condition
+
+    # return +varLogicna, #ERR21: Non-integer expression with prefix +
+    # return -varLogicna, #ERR22: Non-integer expression with prefix -
+    # return !varInt, #ERR23: Non-boolean expression with prefix !
+    # return varInt & varLogicna, #ERR24: Non-boolean expression in binary expression &
+
+    return 1
+
+fun main() : int =
+    let
+        var var1: int
+    in
+        var1 = 1,
+        return 1
+    end

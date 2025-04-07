@@ -1,0 +1,2 @@
+typ a = <b : ^b>
+typ b = <a : ^a>
