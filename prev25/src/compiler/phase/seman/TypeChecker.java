@@ -697,7 +697,7 @@ public TYP.Type visit_helper(AST.RecType recType, AST.Node D) {
 
 	// TYP:38
 	public TYP.Type visit(AST.CallExpr callExpr, AST.Node D) {
-		TYP.Type funType = callExpr.funExpr.accept(this, D).actualType();
+		TYP.Type funType = callExpr.funExpr.accept(this, D); // .actualType();
 		if (funType == null)
 			throw new Report.Error(callExpr, "COMPILER BUG: Calling functions which are defined lower in the file is currently bugged.\nMutually recursive functions as well do not work.");
 		if (!equFun(funType)) 
@@ -751,9 +751,16 @@ public TYP.Type visit_helper(AST.RecType recType, AST.Node D) {
 	// TYP:41 - we do not have parentheses anymore.
 
 	// How to deal with name expression?
+	// TODO: deal with mutual recursion.
 	public TYP.Type visit(AST.NameExpr nameExpr, AST.Node D) {
 		AST.Defn defnAt = SemAn.defAt.get(nameExpr);
 		TYP.Type defnType = SemAn.ofType.get(defnAt);
+		//
+		if (defnType == null) {
+			defnAt.accept(this, D);
+			defnType = SemAn.ofType.get(defnAt);
+		}
+		System.out.printf("Name %s is def.at %s:%s, of type %s\n", nameExpr.name, defnAt.location(), defnAt.name, defnType);
 		SemAn.ofType.put(nameExpr, defnType);
 		if (defnAt instanceof AST.VarDefn) {
 			SemAn.isConst.put(nameExpr, false);

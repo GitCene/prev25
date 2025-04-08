@@ -97,6 +97,7 @@ public class NameResolver implements AST.FullVisitor<Object, NameResolver.Mode> 
 
 	@Override
 	public Object visit(AST.DefFunDefn defFunDefn, NameResolver.Mode mode) {
+		System.out.printf("Nameresolving func %s in mode %s\n", defFunDefn.name, mode.toString());
 		switch (mode) {
 			case Mode.DECLARE:
 				try {
