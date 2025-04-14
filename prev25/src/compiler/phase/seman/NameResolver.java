@@ -97,7 +97,6 @@ public class NameResolver implements AST.FullVisitor<Object, NameResolver.Mode> 
 
 	@Override
 	public Object visit(AST.DefFunDefn defFunDefn, NameResolver.Mode mode) {
-		System.out.printf("Nameresolving func %s in mode %s\n", defFunDefn.name, mode.toString());
 		switch (mode) {
 			case Mode.DECLARE:
 				try {
@@ -242,8 +241,9 @@ public class NameResolver implements AST.FullVisitor<Object, NameResolver.Mode> 
 					letStmt.defns.accept(this, Mode.DECLARE);
 					letStmt.defns.accept(this, Mode.RESOLVE);
 				}
-				if ((letStmt.stmts != null) || (!compiler.Compiler.devMode()))
+				if ((letStmt.stmts != null) || (!compiler.Compiler.devMode())) {
 					letStmt.stmts.accept(this, mode);
+				}
 				symbTable.oldScope();
 				return null;
 			default:
@@ -281,9 +281,33 @@ public class NameResolver implements AST.FullVisitor<Object, NameResolver.Mode> 
 			case Mode.RESOLVE:
 				try {
 					AST.Defn defn = symbTable.fnd(nameExpr.name);
+					/*
+					 * 
+					 System.out.println("Found name " + defn.name + " in depth " + symbTable.currDepth + " among :");
+					 for (String key : symbTable.allDefnsOfAllNames.keySet()) {
+						System.out.printf("%s: ", key);
+						for (NameResolver.SymbTable.ScopedDefn defl : symbTable.allDefnsOfAllNames.get(key)) {
+							System.out.print(defl);
+						}
+						System.out.print("; ");
+					}
+					System.out.println();
+					*/
 					SemAn.defAt.put(nameExpr, defn);
 					return null;
 				} catch (CannotFndNameException e) {
+					/*
+					 * 
+					 System.out.println("DID NOT FIND " + nameExpr.name + " in depth " + symbTable.currDepth + " among :");
+					 for (String key : symbTable.allDefnsOfAllNames.keySet()) {
+						System.out.printf("%s: ", key);
+						for (NameResolver.SymbTable.ScopedDefn defl : symbTable.allDefnsOfAllNames.get(key)) {
+							System.out.print(defl);
+						}
+						System.out.print("; ");
+					}
+					System.out.println();
+					*/
 					throw new Report.Error(nameExpr, "Undefined variable name: " + nameExpr.name);
 				}
 			default:
@@ -319,6 +343,10 @@ public class NameResolver implements AST.FullVisitor<Object, NameResolver.Mode> 
 			public ScopedDefn(int depth, AST.Defn defn) {
 				this.depth = depth;
 				this.defn = defn;
+			}
+
+			public String toString() {
+				return String.format("[%s-%d]", this.defn.toString(), this.depth);
 			}
 
 		}
@@ -408,6 +436,8 @@ public class NameResolver implements AST.FullVisitor<Object, NameResolver.Mode> 
 		 */
 		public AST.Defn fnd(String name) throws CannotFndNameException {
 			LinkedList<ScopedDefn> allDefnsOfName = allDefnsOfAllNames.get(name);
+			
+
 			if (allDefnsOfName == null)
 				throw new CannotFndNameException();
 

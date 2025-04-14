@@ -1,0 +1,28 @@
+typ a = <a:int, b:int>
+typ b = <a:int, b:a>
+typ c = <a:int, b:b>
+
+typ d = [5]a
+typ e = [5]int
+
+typ f = a
+typ g = f
+
+typ h = <a:int, b:<a:int, b:<a:int>>>
+
+var A : a
+var B : b 
+var C : c 
+var D : d 
+var E : e
+var F : <a : int>
+var G : g
+
+fun main() : int =
+    D[1].a = 2,
+    B.a = 2,
+    # Problems begin:
+    B.b.a = 2,
+    return 2
+
+# TODO: e[1] causes an internal error!

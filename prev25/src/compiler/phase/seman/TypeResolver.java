@@ -55,7 +55,6 @@ public class TypeResolver implements AST.FullVisitor<TYP.Type, TypeResolver.Mode
 	private Set<Integer> circularRecursionTracker = new HashSet<Integer>();
 	private boolean inLegalRecursiveType = false;
 
-
     @Override
 	public TYP.Type visit(AST.Nodes< ? extends AST.Node> nodes, Mode mode) {
 		// This gets called first.
@@ -70,6 +69,7 @@ public class TypeResolver implements AST.FullVisitor<TYP.Type, TypeResolver.Mode
 		}
 		return null;
 	}
+
 	
 	@Override
 	public TYP.Type visit(AST.TypDefn typDefn, Mode mode) {

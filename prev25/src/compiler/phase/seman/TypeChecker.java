@@ -666,40 +666,147 @@ public TYP.Type visit_helper(AST.RecType recType, AST.Node D) {
 		throw new Report.InternalError();
 	}
 
+	private static class defnHelper implements AST.FullVisitor<AST.Defn, String> {
+		
+		public defnHelper() {
+
+		}
+		// Helps resolve the damn structs.
+		@Override
+		public AST.Defn visit(AST.CompExpr compExpr, String field) {
+			AST.Defn recExprDefn = compExpr.recExpr.accept(this, compExpr.name);
+			// if field == null: we are happy and return.
+			if (field == null)
+				return recExprDefn;
+			// if field = something: we need to access the field in this result.
+			else
+			// A defn is of a type.
+				return recExprDefn.type.accept(this, field);
+		}
+
+		@Override
+		public AST.Defn visit(AST.ArrExpr arrExpr, String field) {
+			return arrExpr.arrExpr.accept(this, field);
+		}
+
+		@Override
+		public AST.Defn visit(AST.SfxExpr sfxExpr, String field) {
+			switch(sfxExpr.oper) {
+				case AST.SfxExpr.Oper.PTR:
+					// The subexpression should eventually be a pointer type, right?
+					AST.Defn dereferencedExprDefn = sfxExpr.subExpr.accept(this, field);
+					return dereferencedExprDefn.type.accept(this, field);
+				default:
+					throw new Report.Error(sfxExpr, "Unsupported operation in suffix expression");
+			}
+		}
+
+		@Override
+		public AST.Defn visit(AST.NameExpr nameExpr, String field) {
+			// Then it is defined somewhere.
+			AST.Defn varDefn = (AST.VarDefn) SemAn.defAt.get(nameExpr);
+			AST.Type varDefnType = varDefn.type;
+			return varDefnType.accept(this, field);
+		}
+	
+		@Override
+		public AST.Defn visit(AST.NameType nameType, String field) {
+			// Its type is maybe a NameType, in which case jump around ...
+			//System.out.println("On NameType " + nameType.name + " looking for field ." + field);
+			AST.TypDefn nameTypeTypDefn = (AST.TypDefn) SemAn.defAt.get(nameType);
+			return nameTypeTypDefn.type.accept(this, field);
+			//AST.Type varDefnType = SemAn.defAt.get(nameTypeTypDefn.type).type;
+			//return varDefnType.accept(this, field);
+		}
+
+		@Override
+		public AST.Defn visit(AST.StrType strType, String field) {
+			return visitH(strType, field);
+		}
+
+		@Override
+		public AST.Defn visit(AST.UniType uniType, String field) {
+			return visitH(uniType, field);
+		}
+
+		public AST.Defn visitH(AST.RecType recType, String field) {
+			// This RecType has fields.
+			for (final AST.CompDefn compDefn : recType.comps) {
+				if (compDefn.name.equals(field)) {
+					return compDefn;
+				}
+			}
+			// Field does not exist here.
+			return null;
+		}
+
+		@Override
+		public AST.Defn visit(AST.PtrType ptrType, String field) {
+			// Should be here, if we are dereferencing this type in a SfxExpr.
+			return ptrType.baseType.accept(this, field);
+			// We can do this, because it's typechecked already.
+		}
+
+		@Override
+		public AST.Defn visit(AST.ArrType arrType, String field) {
+			return arrType.elemType.accept(this, field);
+		}
+	}
+
+	private defnHelper DEH = new defnHelper();
+
 	// TYP:36,37
 	@Override
 	public TYP.Type visit(AST.CompExpr compExpr, AST.Node D) {
 		//TODO: handle multilevel structs access.
+		// And dereferenced struct access...
 		// Problem is, can be a NameExpr, but is CompExpr if multilevel.
-		AST.NameExpr nameOfStructVar = (AST.NameExpr) (compExpr.recExpr);
+		//AST.NameExpr nameOfStructVar = (AST.NameExpr) (compExpr.recExpr);
+		AST.Expr expr = compExpr.recExpr;
+
 		TYP.Type recType = compExpr.recExpr.accept(this, D);
 		if (!(equStr(recType) || equUni(recType)))
 			throw new Report.Error(compExpr, "Not a record type : " +  recType.toString());
 		String fieldname = compExpr.name;
-		// Go to the var defn of this struct variable...
-		AST.VarDefn defnStructVar = (AST.VarDefn) SemAn.defAt.get(nameOfStructVar);
+
+		// We have an expr.fieldname thing. Expr is of valid TYP.Type, recType, we already know.
+		AST.Defn compDefn = compExpr.accept(DEH, null);
+		if (compDefn == null)
+			throw new Report.Error(compExpr, "Field '" + fieldname + "' does not exist in record type.");
+		TYP.Type exprType = SemAn.ofType.get(compDefn);
+		SemAn.ofType.put(compExpr, exprType);
+		SemAn.isConst.put(compExpr, false);
+		SemAn.isAddr.put(compExpr, true);
+		return exprType;
+
+		/*
+		 * 
+		 
+		// Go to the defn of this struct variable...
+		AST.Defn defnRecVar = (AST.VarDefn) SemAn.defAt.get(expr);
 		// Look which type it is...
-		AST.TypDefn defnStructType = (AST.TypDefn) SemAn.defAt.get(defnStructVar.type);
+		AST.TypDefn defnRecType = (AST.TypDefn) SemAn.defAt.get(defnRecVar.type);
 		// See that it has this field.
-		AST.StrType strType = (AST.StrType) defnStructType.type;
-		//AST.RecType recordType = (AST.RecType) recordDefn.type;
-		for (final AST.CompDefn compDefn : strType.comps) {
+		//AST.StrType strType = (AST.StrType) defnStructType.type;
+		AST.RecType recordType = (AST.RecType) defnRecType.type;
+		for (final AST.CompDefn compDefn : recordType.comps) {
 			if (compDefn.name.equals(fieldname)) {
 				TYP.Type exprType = SemAn.ofType.get(compDefn);
 				SemAn.ofType.put(compExpr, exprType);
 				SemAn.isConst.put(compExpr, false);
 				SemAn.isAddr.put(compExpr, true);
+				// just this?!
 				return exprType;
 			}
 		}
+			
 		throw new Report.Error(compExpr, "Nonexistent field '" + fieldname + "' in record : " + recType.toString());
+		*/
 	}
 
 	// TYP:38
 	public TYP.Type visit(AST.CallExpr callExpr, AST.Node D) {
 		TYP.Type funType = callExpr.funExpr.accept(this, D); // .actualType();
-		if (funType == null)
-			throw new Report.Error(callExpr, "COMPILER BUG: Calling functions which are defined lower in the file is currently bugged.\nMutually recursive functions as well do not work.");
 		if (!equFun(funType)) 
 			throw new Report.Error(callExpr, "Not a callable type : " + funType); //.toString()); // TODO: remove these tostrings
 		while (funType instanceof TYP.NameType) {
@@ -760,7 +867,7 @@ public TYP.Type visit_helper(AST.RecType recType, AST.Node D) {
 			defnAt.accept(this, D);
 			defnType = SemAn.ofType.get(defnAt);
 		}
-		System.out.printf("Name %s is def.at %s:%s, of type %s\n", nameExpr.name, defnAt.location(), defnAt.name, defnType);
+		//System.out.printf("Name %s is def.at %s:%s, of type %s\n", nameExpr.name, defnAt.location(), defnAt.name, defnType);
 		SemAn.ofType.put(nameExpr, defnType);
 		if (defnAt instanceof AST.VarDefn) {
 			SemAn.isConst.put(nameExpr, false);

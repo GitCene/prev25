@@ -225,6 +225,10 @@ public class AST {
 			this.type = type;
 		}
 
+		public String toString() {
+			return String.format("(%s:%s)", this.name, this.type.id);
+		}
+
 	}
 
 	/**

@@ -1,0 +1,101 @@
+typ logicna = bool
+typ strTyp1 = < comp1: int, comp2: ^char >
+typ strTyp2 = < comp1: { comp1: bool, comp2: char }, comp2: strTyp1 >
+
+var extVar1: int
+var extVar2: logicna
+var extVar3: char
+var extVar4: ^int
+var extVar5: [10]int
+
+fun expressions() : int =
+    extVar1 = 20,
+    let
+        var intVar1: int
+        var intVar2: ^int
+        var intVar3: bool
+        var intVar4: [20]char
+        var intVar5: [5]strTyp2
+        var intVar6: strTyp1
+    in
+        extVar1 = 1,
+        extVar1 = { extVar4^ : int },
+        intVar1 = extVar1,
+
+        extVar3 = 'a',
+        extVar3 = '\\',
+        extVar3 = '\'',
+        #extVar3 = '\0x61',
+        extVar3 = { 97*100/extVar1 : char },
+
+        intVar2 = ^intVar1,
+
+        intVar1 = -1,
+        extVar2 = !extVar2,
+
+        extVar2 = (true | false) != (extVar1 > intVar1),
+        intVar3 = { extVar2 & true : bool },
+
+        intVar2 = ^extVar1,
+        extVar4 = intVar2,
+
+        extVar5[1] = intVar6.comp1,
+        extVar5[1] = { intVar6.comp2 : int },
+        extVar2 = { intVar5[2].comp1 : bool },
+        intVar5[2].comp2.comp2 = ^extVar3
+    end
+
+fun statements() : int =
+    10,
+
+    if extVar2 then extVar1 = 1 end,
+    if !extVar2 then return extVar1 end,
+    if { extVar2 & true : bool } then extVar1 = 1, return extVar1 end,
+
+    if extVar1 == extVar5[0] then return extVar1 else return extVar4^ end,
+    
+    while extVar5[9] > extVar4^ do extVar5[9] = extVar5[9] - 1 end
+
+fun functions1(par1: int) : int =
+    let
+        var intVar1: int
+        fun fun2(par2: int) : int =
+            let
+                fun fun3(par3: int) : int =
+                    par1,
+                    par2,
+                    par3,
+                    intVar1
+            in
+                par1
+            end
+    in
+        par1
+    end
+
+fun functions2(par0: int) : int =
+    let
+        var intVar1: int
+        fun fun1() : int = return 1
+        fun fun2(par1: int) : int =
+            par1 = extVar4^,
+            if par0 == par1 then return intVar1 end
+        fun fun3(par2: char) : char =
+            let
+                fun fun4(par3: char) : char =
+                    par3 = par2,
+                    par0 = fun2(42),
+                    par2 = par3, #how tf is '\0x4b' unrecognizable for me
+                    if main() == 0 then return 'a' else return '\\' end
+            in
+                fun4('"')
+            end
+    in
+        while fun1() != 1 do fun2(fun1()) end,
+        externalFunction(par0)
+    end
+
+fun externalFunction(par1: int) : int
+
+
+fun main() : int = return 0

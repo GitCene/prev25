@@ -11,6 +11,7 @@ import compiler.phase.synan.*;
 import compiler.phase.abstr.*;
 import compiler.phase.seman.*;
 import compiler.phase.memory.*;
+import compiler.phase.imcgen.*;
 
 /**
  * The Prev25 compiler.
@@ -33,7 +34,7 @@ public class Compiler {
 
 	/** All valid phases name of the compiler. */
 	private static final Vector<String> phaseNames = new Vector<String>(
-			Arrays.asList("none", "all", "lexan", "synan", "abstr", "seman", "memory"));
+			Arrays.asList("none", "all", "lexan", "synan", "abstr", "seman", "memory", "imcgen"));
 
 	/**
 	 * Returns the value of a command line option.
@@ -200,9 +201,21 @@ public class Compiler {
 					Abstr.Logger logger = new Abstr.Logger(memory.logger);
 					logger.addSubvisitor(new SemAn.Logger(memory.logger));
 					logger.addSubvisitor(new Memory.Logger(memory.logger));
-					Abstr.tree.accept(logger, "Nodes<Defn>");
+					//Abstr.tree.accept(logger, "Nodes<Defn>");
 				}
 				if (cmdLineOptValues.get("--target-phase").equals("memory"))
+					break;
+
+				// Intermediate code generation.
+				try (ImcGen imcGen = new ImcGen()) {
+					//Abstr.tree.accept(new ImcGenerator(), null);
+					Abstr.Logger logger = new Abstr.Logger(imcGen.logger);
+					logger.addSubvisitor(new SemAn.Logger(imcGen.logger));
+					logger.addSubvisitor(new Memory.Logger(imcGen.logger));
+					logger.addSubvisitor(new ImcGen.Logger(imcGen.logger));
+					//Abstr.tree.accept(logger, "AstDefn");
+				}
+				if (cmdLineOptValues.get("--target-phase").equals("imcgen"))
 					break;
 
 				// Do not loop... ever.
