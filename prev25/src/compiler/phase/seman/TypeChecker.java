@@ -368,18 +368,20 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 		TYP.Type resType = SemAn.isType.get(funDefn.type);
 		if (!legalTypeEquivVoid(resType))
 			throw new Report.Error(funDefn.type, "Illegal return type : " + resType.toString());
-		
+			
+		TYP.FunType funType = new TYP.FunType(parTypes, resType);
+		SemAn.ofType.put(funDefn, funType);
+
 		if (hasBody) {
 			AST.DefFunDefn defFunDefn = (AST.DefFunDefn) funDefn;
 			for (final AST.Stmt stmt : defFunDefn.stmts) {
-				TYP.Type stmtType = stmt.accept(this, defFunDefn);
+				stmt.accept(this, defFunDefn);
+				//TYP.Type stmtType = stmt.accept(this, defFunDefn);
 				// Don't do this, because expressions are statement and are not void type.
 				//if (stmtType != TYP.VoidType.type) // && stmtType != null)
 					//throw new Report.Error(stmt, "Malformed statement. How?");
 			}
 		}
-		TYP.FunType funType = new TYP.FunType(parTypes, resType);
-		SemAn.ofType.put(funDefn, funType);
 		//SemAn.isConst.put(funDefn, false);
 		//SemAn.isAddr.put(funDefn, false);
 		return TYP.VoidType.type;
@@ -791,9 +793,9 @@ public TYP.Type visit_helper(AST.RecType recType, AST.Node D) {
 
 	// TYP:38
 	public TYP.Type visit(AST.CallExpr callExpr, AST.Node D) {
-		TYP.Type funType = callExpr.funExpr.accept(this, D); // .actualType();
+		TYP.Type funType = callExpr.funExpr.accept(this, D);
 		if (!equFun(funType)) 
-			throw new Report.Error(callExpr, "Not a callable type : " + funType); //.toString()); // TODO: remove these tostrings
+			throw new Report.Error(callExpr, "Not a callable type : " + funType);
 		while (funType instanceof TYP.NameType) {
 			funType = ((TYP.NameType)funType).type();
 		}
