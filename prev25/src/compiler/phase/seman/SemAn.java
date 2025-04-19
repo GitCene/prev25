@@ -33,7 +33,7 @@ public class SemAn extends Phase {
 	// Attribute IsType:
 
 	/** Tester for nodes defining types. */
-	private static final Predicate<AST.Node> validForIsType = //
+	protected static final Predicate<AST.Node> validForIsType = //
 			(AST.Node node) -> (node instanceof AST.TypDefn) || (node instanceof AST.Type);
 
 	/** Attribute specifying what type is defined by a node. */

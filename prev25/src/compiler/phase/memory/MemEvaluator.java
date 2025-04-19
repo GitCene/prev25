@@ -117,7 +117,16 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
 
 		@Override
 		public Long visit(TYP.UniType uniType, Object arg) {
-			return uniType.compTypes.accept(this, arg);
+			//return uniType.compTypes.accept(this, arg);
+            Long size = 0L;
+            for (TYP.Type type : uniType.compTypes) {
+                Long typeSize = type.accept(this, arg);
+                if (typeSize > size) {
+                    size = typeSize;
+                }
+            }
+            return size;
+
 		}
 
 		@Override

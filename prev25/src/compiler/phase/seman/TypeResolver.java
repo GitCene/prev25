@@ -217,9 +217,7 @@ public class TypeResolver implements AST.FullVisitor<TYP.Type, TypeResolver.Mode
 				//SemAn.isAddr.put(compDefn, true);
 			}
 			*/
-				//inLegalRecursiveType = true;	
 				strType.comps.accept(this, mode);
-				//inLegalRecursiveType = false;	
 				return SemAn.isType.get(strType);
 			default:
 				throw new Report.InternalError();
@@ -303,7 +301,11 @@ public class TypeResolver implements AST.FullVisitor<TYP.Type, TypeResolver.Mode
 					// Maybe there was valid recursion along the way:
 					if (inLegalRecursiveType) {
 						circularRecursionTracker.remove(nameType.id);
-						refType = SemAn.isType.get(def); // this will probably break:(
+						if (!SemAn.validForIsType.test(def))
+							throw new Report.Error(def, "Cannot resolve type name: " + nameType.name);
+							refType = SemAn.isType.get(def); 
+						if (refType == null) 
+							throw new Report.Error(def, "Cannot resolve type name: " + nameType.name);	
 						type.setActType(refType);
 						return type;
 					}

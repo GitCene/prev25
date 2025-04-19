@@ -422,8 +422,13 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 		if (!equ(condType, TYP.BoolType.type))
 			throw new Report.Error(whileStmt.condExpr, "Invalid type of condition : " + condType.toString());
 		for (final AST.Stmt stmt : whileStmt.stmts)
-			if (stmt.accept(this, D) != TYP.VoidType.type)
-				throw new Report.Error(stmt, "Invalid statement.");
+			// Probably toss out such things. If they are invalid, Errors will be called inbetween.
+			/*
+			 * 
+			 if (stmt.accept(this, D) != TYP.VoidType.type)
+			 throw new Report.Error(stmt, "Invalid statement.");
+			 */
+			stmt.accept(this, D);
 		return TYP.VoidType.type;
 	}
 
@@ -433,8 +438,12 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 		if (!equ(condType, TYP.BoolType.type))
 			throw new Report.Error(ifStmt.condExpr, "Invalid type of condition : " + condType.toString());
 		for (final AST.Stmt stmt : ifStmt.thenStmt)
-			if (stmt.accept(this, D) != TYP.VoidType.type)
-				throw new Report.Error(stmt, "Invalid statement.");
+			stmt.accept(this, D);
+		/*
+		 * 
+		 if (stmt.accept(this, D) != TYP.VoidType.type)
+		 throw new Report.Error(stmt, "Invalid statement.");
+		 */
 		return TYP.VoidType.type;
 	}
 
@@ -444,11 +453,13 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 		if (!equ(condType, TYP.BoolType.type))
 			throw new Report.Error(ifStmt.condExpr, "Invalid type of condition : " + condType.toString());
 		for (final AST.Stmt stmt : ifStmt.thenStmt)
-			if (stmt.accept(this, D) != TYP.VoidType.type)
-				throw new Report.Error(stmt, "Invalid statement.");
+			stmt.accept(this, D);
+			//if (stmt.accept(this, D) != TYP.VoidType.type)
+			//	throw new Report.Error(stmt, "Invalid statement.");
 		for (final AST.Stmt stmt : ifStmt.elseStmt)
-			if (stmt.accept(this, D) != TYP.VoidType.type)
-				throw new Report.Error(stmt, "Invalid statement.");
+			stmt.accept(this, D);
+			//if (stmt.accept(this, D) != TYP.VoidType.type)
+			//	throw new Report.Error(stmt, "Invalid statement.");
 		return TYP.VoidType.type;
 	}
 
@@ -458,8 +469,9 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 			if (defn.accept(this, D) != TYP.VoidType.type)
 				throw new Report.Error(defn, "Invalid definition.");
 		for (final AST.Stmt stmt : letStmt.stmts)
-			if (stmt.accept(this, D) != TYP.VoidType.type)
-				throw new Report.Error(stmt, "Invalid statement.");
+			stmt.accept(this, D);
+			//if (stmt.accept(this, D) != TYP.VoidType.type)
+			//	throw new Report.Error(stmt, "Invalid statement.");
 		return TYP.VoidType.type;
 	}
 
@@ -695,6 +707,11 @@ public TYP.Type visit_helper(AST.RecType recType, AST.Node D) {
 				case AST.SfxExpr.Oper.PTR:
 					// The subexpression should eventually be a pointer type, right?
 					AST.Defn dereferencedExprDefn = sfxExpr.subExpr.accept(this, field);
+					// TODO: Here is problem. How can we tell, whether we are still digging, or already returning?
+					// TODO: Figure out when to go deeper in dereferencedExprDefn.type.accept and when to just return dereferencedExprDefn.
+					// It seems like: never go deeper?
+					boolean sometimes = true;
+					if (sometimes) return dereferencedExprDefn;
 					return dereferencedExprDefn.type.accept(this, field);
 				default:
 					throw new Report.Error(sfxExpr, "Unsupported operation in suffix expression");
@@ -704,7 +721,8 @@ public TYP.Type visit_helper(AST.RecType recType, AST.Node D) {
 		@Override
 		public AST.Defn visit(AST.NameExpr nameExpr, String field) {
 			// Then it is defined somewhere.
-			AST.Defn varDefn = (AST.VarDefn) SemAn.defAt.get(nameExpr);
+			// There is either a varDefn or a parDefn.
+			AST.Defn varDefn = SemAn.defAt.get(nameExpr);
 			AST.Type varDefnType = varDefn.type;
 			return varDefnType.accept(this, field);
 		}
@@ -712,11 +730,8 @@ public TYP.Type visit_helper(AST.RecType recType, AST.Node D) {
 		@Override
 		public AST.Defn visit(AST.NameType nameType, String field) {
 			// Its type is maybe a NameType, in which case jump around ...
-			//System.out.println("On NameType " + nameType.name + " looking for field ." + field);
 			AST.TypDefn nameTypeTypDefn = (AST.TypDefn) SemAn.defAt.get(nameType);
 			return nameTypeTypDefn.type.accept(this, field);
-			//AST.Type varDefnType = SemAn.defAt.get(nameTypeTypDefn.type).type;
-			//return varDefnType.accept(this, field);
 		}
 
 		@Override
@@ -758,12 +773,6 @@ public TYP.Type visit_helper(AST.RecType recType, AST.Node D) {
 	// TYP:36,37
 	@Override
 	public TYP.Type visit(AST.CompExpr compExpr, AST.Node D) {
-		//TODO: handle multilevel structs access.
-		// And dereferenced struct access...
-		// Problem is, can be a NameExpr, but is CompExpr if multilevel.
-		//AST.NameExpr nameOfStructVar = (AST.NameExpr) (compExpr.recExpr);
-		AST.Expr expr = compExpr.recExpr;
-
 		TYP.Type recType = compExpr.recExpr.accept(this, D);
 		if (!(equStr(recType) || equUni(recType)))
 			throw new Report.Error(compExpr, "Not a record type : " +  recType.toString());
@@ -778,30 +787,6 @@ public TYP.Type visit_helper(AST.RecType recType, AST.Node D) {
 		SemAn.isConst.put(compExpr, false);
 		SemAn.isAddr.put(compExpr, true);
 		return exprType;
-
-		/*
-		 * 
-		 
-		// Go to the defn of this struct variable...
-		AST.Defn defnRecVar = (AST.VarDefn) SemAn.defAt.get(expr);
-		// Look which type it is...
-		AST.TypDefn defnRecType = (AST.TypDefn) SemAn.defAt.get(defnRecVar.type);
-		// See that it has this field.
-		//AST.StrType strType = (AST.StrType) defnStructType.type;
-		AST.RecType recordType = (AST.RecType) defnRecType.type;
-		for (final AST.CompDefn compDefn : recordType.comps) {
-			if (compDefn.name.equals(fieldname)) {
-				TYP.Type exprType = SemAn.ofType.get(compDefn);
-				SemAn.ofType.put(compExpr, exprType);
-				SemAn.isConst.put(compExpr, false);
-				SemAn.isAddr.put(compExpr, true);
-				// just this?!
-				return exprType;
-			}
-		}
-			
-		throw new Report.Error(compExpr, "Nonexistent field '" + fieldname + "' in record : " + recType.toString());
-		*/
 	}
 
 	// TYP:38
@@ -867,7 +852,6 @@ public TYP.Type visit_helper(AST.RecType recType, AST.Node D) {
 			defnAt.accept(this, D);
 			defnType = SemAn.ofType.get(defnAt);
 		}
-		//System.out.printf("Name %s is def.at %s:%s, of type %s\n", nameExpr.name, defnAt.location(), defnAt.name, defnType);
 		SemAn.ofType.put(nameExpr, defnType);
 		if (defnAt instanceof AST.VarDefn) {
 			SemAn.isConst.put(nameExpr, false);

@@ -1,0 +1,7 @@
+typ s1 = <a : int>
+
+var a : ^s1
+
+fun main() : int = 
+    a^.a = 2,
+    return 2

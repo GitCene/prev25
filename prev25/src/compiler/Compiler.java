@@ -197,11 +197,11 @@ public class Compiler {
 
 				// Memory.
 				try (Memory memory = new Memory()) {
-					//Abstr.tree.accept(new MemEvaluator(), null);
+					Abstr.tree.accept(new MemEvaluator(), null);
 					Abstr.Logger logger = new Abstr.Logger(memory.logger);
 					logger.addSubvisitor(new SemAn.Logger(memory.logger));
 					logger.addSubvisitor(new Memory.Logger(memory.logger));
-					//Abstr.tree.accept(logger, "Nodes<Defn>");
+					Abstr.tree.accept(logger, "Nodes<Defn>");
 				}
 				if (cmdLineOptValues.get("--target-phase").equals("memory"))
 					break;
