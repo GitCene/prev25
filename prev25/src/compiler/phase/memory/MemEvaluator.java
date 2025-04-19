@@ -72,7 +72,7 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
             for (TYP.Type type : types) {
                 Long typeSize = type.accept(this, arg);
                 // Respect alignment
-                size += typeSize + align(typeSize);
+                size += padded(typeSize); //+ pad(typeSize);
             }
 			return size;
 		}
@@ -100,9 +100,9 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
 		@Override
 		public Long visit(TYP.ArrType arrType, Object arg) {
 			Long elemSize = arrType.elemType.accept(this, arg);
-            // Should we align?
+            // Should we pad?
             Long size = arrType.numElems * elemSize;
-            return size; // + align(size); Probably should not align due to arrays of arrays?
+            return size; // + pad(size); Probably should not pad due to arrays of arrays?
 		}
 
 		@Override
@@ -121,9 +121,7 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
             Long size = 0L;
             for (TYP.Type type : uniType.compTypes) {
                 Long typeSize = type.accept(this, arg);
-                if (typeSize > size) {
-                    size = typeSize;
-                }
+                size = Long.max(size, typeSize);
             }
             return size;
 
@@ -138,15 +136,22 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
 
 		@Override
 		public Long visit(TYP.FunType funType, Object arg) {
-			return 0L;
+			// Idk?
+            return PTRSIZE;
 		}
 
     }
 
     private TypeSizer typeSizer = new TypeSizer();
 
-    private static Long align(Long size) {
-        return (WORDSIZE - size % WORDSIZE) % WORDSIZE;
+    private static Long pad(Long size) {
+        return 0L;
+        //return (WORDSIZE - size % WORDSIZE) % WORDSIZE;
+    }
+
+    private static Long padded(Long size) {
+        // Pad the size to nearest multiple of WORDSIZE.
+        return size + ((WORDSIZE - size % WORDSIZE) % WORDSIZE);
     }
 
     @Override
@@ -161,22 +166,48 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
                     Long retval = node.accept(this, offset);
                     if (retval != null) {
                         // Respect alignment
-                        retval += align(retval);
-                        size += retval;
-                            offset += retval;
+                        //retval += pad(retval);
+                        size += padded(retval);
+                        offset += padded(retval);
                     }
                 }
             return size;
         }   
 	}
 
+    // TODO : perhaps extend for a StrType too?
+    @Override
+    public Long visit(AST.UniType uniType, Long offset) {
+        Long size = 0L;
+        for (final AST.Node node : uniType.comps) {
+            if ((node != null) || (!compiler.Compiler.devMode())) {
+                Long retval = node.accept(this, offset);
+                if (retval != null) {
+                    //retval += pad(retval);
+                    size = Long.max(size, retval);
+                }
+            }
+        }
+        return size;
+    }
+
     // Should set Memory.frames attribute for a fun defn.
+    @Override
+    public Long visit(AST.ExtFunDefn extFunDefn, Long offset) {
+        this.depth++;
+        // Should here be a new label?
+        extFunDefn.pars.accept(this, 0L);
+        this.depth--;
+        return 0L;
+    }
     @Override
     public Long visit(AST.DefFunDefn defFunDefn, Long offset) {
      	Long size = 0L, locsSize = 0L, argsSize = 0L;
 		this.depth++;
 		final MEM.Label label = new MEM.Label(defFunDefn.name);
         
+        // Don't forget to visit parameters!
+        defFunDefn.pars.accept(this, 0L);
         // Compute the size of local variables.
         // Also compute the size of parameter block.
         // This is the MAX size for args needed by the functions called here.
@@ -230,10 +261,13 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
     // Here, we start to set Memory.accesses.
     @Override
     public Long visit(AST.VarDefn varDefn, Long offset) {
+        // Go deeper?
+        varDefn.type.accept(this, 0L);
+
         // Get the checked type of this var
         TYP.Type type = SemAn.ofType.get(varDefn).actualType();
         Long size = type.accept(typeSizer, null);
-        size += align(size);
+        //size += pad(size);
         // Set the access
         MEM.Label label;
         MEM.Access access;
@@ -242,7 +276,7 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
             access = new MEM.AbsAccess(size, label);
         } else {
             label = new MEM.Label();
-                access = new MEM.RelAccess(size, -(offset+size), this.depth);
+            access = new MEM.RelAccess(size, -(offset+padded(size)), this.depth);
         }
         Memory.accesses.put(varDefn, access);
         return size;
@@ -250,19 +284,27 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
 
     @Override
     public Long visit(AST.ParDefn parDefn, Long offset) {
+        // Go deeper?
+        parDefn.type.accept(this, 0L);
+
         TYP.Type type = SemAn.ofType.get(parDefn).actualType();
         Long size = type.accept(typeSizer, null);
-        size += align(size);
-        MEM.RelAccess access = new MEM.RelAccess(size, offset+size, depth);
+        //size += pad(size);
+        //This either way... should be fixed to include ykno, the STATIC_LINK thibg...
+        //TODO: Probably the offset ain't allright.
+        MEM.RelAccess access = new MEM.RelAccess(size, offset+padded(size), depth);
         Memory.accesses.put(parDefn, access);
         return size;
     }
 
     @Override
     public Long visit(AST.CompDefn compDefn, Long offset) {
+        // Go deeper?
+        compDefn.type.accept(this, 0L);
+
         TYP.Type type = SemAn.ofType.get(compDefn);
         Long size = type.accept(typeSizer, null);
-        size += align(size);
+        //size += pad(size);
         //I guess this isn't quite working
         MEM.RelAccess access = new MEM.RelAccess(size, offset, -1);
         //System.out.println("Got a compdefn " + compDefn.toString() + " of size " + size);
@@ -273,9 +315,13 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
     // Set the max param size for calling frame.
     @Override
     public Long visit(AST.CallExpr callExpr, Long offset) {
+        // Go deeper?
+        callExpr.funExpr.accept(this, 0L);
+        callExpr.argExprs.accept(this, 0L);
+
         TYP.Type type = SemAn.ofType.get(callExpr).actualType();
         Long size = type.accept(typeSizer, null);
-        size += align(size);
+        //size += pad(size);
         if (size > this.paramBlockSize)
             paramBlockSize = size;
         return 0L;
@@ -288,7 +334,8 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
             MEM.Label label = new MEM.Label("_S" + strCount);
             strCount++;
             Long size = (long) expr.value.length();
-            size += align(size); // Should we align?
+            //size += pad(size); // Should we pad?
+            // TODO: parse the string properly here.
             MEM.AbsAccess access = new MEM.AbsAccess(size, label, expr.value);
             Memory.strings.put(expr, access);
         }
