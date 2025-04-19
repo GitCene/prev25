@@ -275,7 +275,7 @@ public class TypeChecker implements AST.FullVisitor<TYP.Type, AST.Node> {
 
 	private boolean equUni(TYP.Type type) {
 		return type instanceof TYP.UniType ||
-			(type instanceof TYP.NameType && equStr(((TYP.NameType)type).type())  );
+			(type instanceof TYP.NameType && equUni(((TYP.NameType)type).type())  );
 	}
 
 	private boolean legalTypeEquivVoid(TYP.Type type) {
