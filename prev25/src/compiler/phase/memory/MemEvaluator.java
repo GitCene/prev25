@@ -1,15 +1,12 @@
 package compiler.phase.memory;
 
-import java.util.*;
+
 import compiler.phase.abstr.*;
-import compiler.phase.abstr.AST.DefFunDefn;
-import compiler.phase.abstr.AST.LetStmt;
-import compiler.phase.abstr.AST.PtrType;
 import compiler.phase.seman.*;
-import compiler.phase.seman.TYP.BoolType;
-import compiler.phase.seman.TYP.CharType;
-import compiler.phase.seman.TYP.IntType;
-import compiler.phase.seman.TYP.VoidType;
+
+// TODO: Think about labels.
+// I am labelling strings with _Si, should they be anonymous labels?
+// Should my labels or abs/rel access be retooled?
 
 /**
  * Computing memory layout: stack frames and variable accesses.
@@ -203,8 +200,12 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
     @Override
     public Long visit(AST.DefFunDefn defFunDefn, Long offset) {
      	Long size = 0L, locsSize = 0L, argsSize = 0L;
-		this.depth++;
-		final MEM.Label label = new MEM.Label(defFunDefn.name);
+        final MEM.Label label; 
+        if (this.depth == 0)
+            label = new MEM.Label(defFunDefn.name);
+		else
+            label = new MEM.Label();
+        this.depth++;
         
         // Don't forget to visit parameters!
         defFunDefn.pars.accept(this, 0L);
@@ -221,11 +222,14 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
         argsSize = paramBlockSize;
         paramBlockSize = tempParamBlockSize;
 
+        // Increase argsSize by SL
+        argsSize += PTRSIZE;
+
+        // size = local vars + prev. FP + return address + (temp vars, registers) + (outargs + SL)
+        size = locsSize      + PTRSIZE  + PTRSIZE                                 + argsSize;
         
-        // size = local vars + prev. FP + return address + (temp vars, registers) + outargs + SL
-        size = locsSize + PTRSIZE + PTRSIZE + argsSize + PTRSIZE;
-    
-        Memory.frames.put(defFunDefn, new MEM.Frame(label, this.depth, locsSize, argsSize, size));
+        // depth ++ for vars inside the function, while the function is still of depth depth
+        Memory.frames.put(defFunDefn, new MEM.Frame(label, this.depth-1, locsSize, argsSize, size));
         this.depth--;
 
         return 0L;
@@ -289,9 +293,7 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
 
         TYP.Type type = SemAn.ofType.get(parDefn).actualType();
         Long size = type.accept(typeSizer, null);
-        //size += pad(size);
-        //This either way... should be fixed to include ykno, the STATIC_LINK thibg...
-        //TODO: Probably the offset ain't allright.
+        //I think this is all right?
         MEM.RelAccess access = new MEM.RelAccess(size, offset+padded(size), depth);
         Memory.accesses.put(parDefn, access);
         return size;
@@ -307,7 +309,6 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
         //size += pad(size);
         //I guess this isn't quite working
         MEM.RelAccess access = new MEM.RelAccess(size, offset, -1);
-        //System.out.println("Got a compdefn " + compDefn.toString() + " of size " + size);
         Memory.accesses.put(compDefn, access);
         return size;
     }
@@ -318,10 +319,23 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
         // Go deeper?
         callExpr.funExpr.accept(this, 0L);
         callExpr.argExprs.accept(this, 0L);
-
-        TYP.Type type = SemAn.ofType.get(callExpr).actualType();
-        Long size = type.accept(typeSizer, null);
-        //size += pad(size);
+        Long size = 0L;
+        for (AST.Expr argExpr : callExpr.argExprs) {
+            //Long retsize = argExpr.t.accept(this, offset);
+            //if (retsize != null) {
+            //    size += padded(retsize);
+            //    offset += padded(retsize);
+            //}
+            Long argSize = SemAn.ofType.get(argExpr).accept(typeSizer, null);
+            size += padded(argSize);
+        }
+        /*
+         // Not ok, we don't want the return value's type.
+         TYP.Type type = SemAn.ofType.get(callExpr).actualType();
+         System.out.println(type);
+         Long size = type.accept(typeSizer, null);
+         //size += pad(size);
+         */
         if (size > this.paramBlockSize)
             paramBlockSize = size;
         return 0L;
@@ -331,12 +345,19 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
     @Override
     public Long visit(AST.AtomExpr expr, Long offset) {
         if (expr.type == AST.AtomExpr.Type.STR) {
-            MEM.Label label = new MEM.Label("_S" + strCount);
+            // Should strings be named labels?
+            MEM.Label label = new MEM.Label("S" + strCount);
             strCount++;
-            Long size = (long) expr.value.length();
-            //size += pad(size); // Should we pad?
-            // TODO: parse the string properly here.
-            MEM.AbsAccess access = new MEM.AbsAccess(size, label, expr.value);
+            // Skip the opening and closing quote
+            String raw = expr.value.substring(1, expr.value.length() - 1);
+            raw = raw.replace("\\\"", "\"");
+            String sizecopy = raw.replaceAll("\\\\0x[0-9A-F][0-9A-F]", "|");
+            raw = raw.replace("\\\\", "\\");
+            sizecopy = sizecopy.replace("\\\\", "\\");
+            // Calculate size accounting for \0xXX and for terminating null byte
+            Long size = (long) sizecopy.length() + 1;
+
+            MEM.AbsAccess access = new MEM.AbsAccess(size, label, raw);
             Memory.strings.put(expr, access);
         }
         return 0L;
