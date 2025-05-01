@@ -1,5 +1,6 @@
 package compiler.phase.memory;
 
+import java.util.HashMap;
 import java.util.function.Predicate;
 
 import compiler.common.logger.Logger;
@@ -13,6 +14,9 @@ import compiler.phase.seman.*;
  * @author bostjan.slivnik@fri.uni-lj.si
  */
 public class Memory extends Phase {
+
+	// TYP sizes
+	public static final HashMap<TYP.Type, Long> TYPsizes = new HashMap<TYP.Type, Long>();
 
 	// Attribute Frames:
 

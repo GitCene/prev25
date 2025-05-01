@@ -208,12 +208,12 @@ public class Compiler {
 
 				// Intermediate code generation.
 				try (ImcGen imcGen = new ImcGen()) {
-					//Abstr.tree.accept(new ImcGenerator(), null);
+					Abstr.tree.accept(new ImcGenerator(), null);
 					Abstr.Logger logger = new Abstr.Logger(imcGen.logger);
 					logger.addSubvisitor(new SemAn.Logger(imcGen.logger));
 					logger.addSubvisitor(new Memory.Logger(imcGen.logger));
 					logger.addSubvisitor(new ImcGen.Logger(imcGen.logger));
-					//Abstr.tree.accept(logger, "AstDefn");
+					Abstr.tree.accept(logger, "AstDefn");
 				}
 				if (cmdLineOptValues.get("--target-phase").equals("imcgen"))
 					break;

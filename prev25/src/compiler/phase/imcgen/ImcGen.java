@@ -58,13 +58,13 @@ public class ImcGen extends Phase {
 			switch (node) {
 			case AST.Expr expr -> {
 				IMC.Expr exprImc = ImcGen.expr.get(expr);
-				if (expr != null)
+				if (exprImc != null)
 					exprImc.log(logger);
 				break;
 			}
 			case AST.Stmt stmt -> {
 				IMC.Stmt stmtImc = ImcGen.stmt.get(stmt);
-				if (stmt != null)
+				if (stmtImc != null)
 					stmtImc.log(logger);
 				break;
 			}

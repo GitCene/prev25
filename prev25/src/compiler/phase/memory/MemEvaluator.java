@@ -1,12 +1,16 @@
 package compiler.phase.memory;
 
 
+import java.util.HashMap;
+import java.util.Hashtable;
+
 import compiler.phase.abstr.*;
 import compiler.phase.seman.*;
 
 // TODO: Think about labels.
 // I am labelling strings with _Si, should they be anonymous labels?
 // Should my labels or abs/rel access be retooled?
+// You are generating ~8 too many labels on imc1.prev test.
 
 /**
  * Computing memory layout: stack frames and variable accesses.
@@ -48,11 +52,13 @@ import compiler.phase.seman.*;
  */
 public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, arg>
 
-    private static final long INTSIZE = 8L;
-    private static final long CHARSIZE = 1L;
-    private static final long BOOLSIZE = 1L;
-    private static final long PTRSIZE = 8L; //TO BE DETERMINED
-    private static final long WORDSIZE = 8L;
+    public static final long INTSIZE = 8L;
+    public static final long CHARSIZE = 1L;
+    public static final long BOOLSIZE = 1L;
+    public static final long PTRSIZE = 8L; //TO BE DETERMINED
+    public static final long WORDSIZE = 8L;
+
+    ///public HashMap<TYP.Type, Long> TYPsizes = new HashMap<TYP.Type, Long>();
     
     private long depth = 0;
     private long paramBlockSize = 0L;
@@ -60,6 +66,7 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
     private static long strCount = 0;
     
     public MemEvaluator() {
+
     }
 
     private static class TypeSizer extends TYP.FullVisitor<Long, Object> {
@@ -71,26 +78,31 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
                 // Respect alignment
                 size += padded(typeSize); //+ pad(typeSize);
             }
+            // put nothing?
 			return size;
 		}
 
 		@Override
 		public Long visit(TYP.IntType intType, Object arg) {
-			return INTSIZE;
+            Memory.TYPsizes.put(intType, INTSIZE);
+            return INTSIZE;
 		}
 
 		@Override
 		public Long visit(TYP.CharType charType, Object arg) {
-			return CHARSIZE;
+			Memory.TYPsizes.put(charType, CHARSIZE);
+            return CHARSIZE;
 		}
 
 		@Override
 		public Long visit(TYP.BoolType boolType, Object arg) {
-			return BOOLSIZE;
+            Memory.TYPsizes.put(boolType, BOOLSIZE);
+            return BOOLSIZE;
 		}
 
 		@Override
 		public Long visit(TYP.VoidType voidType, Object arg) {
+            Memory.TYPsizes.put(voidType, PTRSIZE);
 			return PTRSIZE;
 		}
 
@@ -99,18 +111,22 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
 			Long elemSize = arrType.elemType.accept(this, arg);
             // Should we pad?
             Long size = arrType.numElems * elemSize;
+            Memory.TYPsizes.put(arrType, size);
             return size; // + pad(size); Probably should not pad due to arrays of arrays?
 		}
 
 		@Override
 		public Long visit(TYP.PtrType ptrType, Object arg) {
-			return PTRSIZE;
+			Memory.TYPsizes.put(ptrType, PTRSIZE);
+            return PTRSIZE;
 		}
 
 		@Override
 		public Long visit(TYP.StrType strType, Object arg) {
-			return strType.compTypes.accept(this, arg);
-		}
+			Long size = strType.compTypes.accept(this, arg);
+            Memory.TYPsizes.put(strType, size);
+            return size;
+        }
 
 		@Override
 		public Long visit(TYP.UniType uniType, Object arg) {
@@ -120,6 +136,7 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
                 Long typeSize = type.accept(this, arg);
                 size = Long.max(size, typeSize);
             }
+            Memory.TYPsizes.put(uniType, size);
             return size;
 
 		}
@@ -128,22 +145,28 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
 		public Long visit(TYP.NameType nameType, Object arg) {
             //System.out.println("You have visited a NameType with TypeSizer. This should not happen. Is .actualType() working?");
 			//Let's put some duct tape on this
-            return nameType.type().accept(this, null);
-		}
+            Long size = nameType.type().accept(this, null);
+            Memory.TYPsizes.put(nameType, size);
+            return size;
+        }
 
 		@Override
 		public Long visit(TYP.FunType funType, Object arg) {
 			// Idk?
+            Memory.TYPsizes.put(funType, PTRSIZE);
             return PTRSIZE;
 		}
 
     }
 
-    private TypeSizer typeSizer = new TypeSizer();
+    public TypeSizer typeSizer = new TypeSizer();
 
-    private static Long pad(Long size) {
-        return 0L;
-        //return (WORDSIZE - size % WORDSIZE) % WORDSIZE;
+    private Long sizing(TYP.Type type) {
+        Long size = Memory.TYPsizes.get(type);
+        if (size == null) {
+            size = type.accept(typeSizer, null);
+        }
+        return size;
     }
 
     private static Long padded(Long size) {
@@ -157,7 +180,6 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
 			return visit(nodes, 0L);
 		} else {
             Long size = 0L;
-            // This causes structs to double in size?
 			for (final AST.Node node : nodes)
 				if ((node != null) || (!compiler.Compiler.devMode())) {
                     Long retval = node.accept(this, offset);
@@ -180,7 +202,6 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
             if ((node != null) || (!compiler.Compiler.devMode())) {
                 Long retval = node.accept(this, offset);
                 if (retval != null) {
-                    //retval += pad(retval);
                     size = Long.max(size, retval);
                 }
             }
@@ -223,6 +244,7 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
         paramBlockSize = tempParamBlockSize;
 
         // Increase argsSize by SL
+        // TODO: decide if functions which have no callexprs, do not get this.
         argsSize += PTRSIZE;
 
         // size = local vars + prev. FP + return address + (temp vars, registers) + (outargs + SL)
@@ -270,7 +292,8 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
 
         // Get the checked type of this var
         TYP.Type type = SemAn.ofType.get(varDefn).actualType();
-        Long size = type.accept(typeSizer, null);
+        //Long size = type.accept(typeSizer, null);
+        Long size = sizing(type);
         //size += pad(size);
         // Set the access
         MEM.Label label;
@@ -292,7 +315,8 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
         parDefn.type.accept(this, 0L);
 
         TYP.Type type = SemAn.ofType.get(parDefn).actualType();
-        Long size = type.accept(typeSizer, null);
+        //Long size = type.accept(typeSizer, null);
+        Long size = sizing(type);
         //I think this is all right?
         MEM.RelAccess access = new MEM.RelAccess(size, offset+padded(size), depth);
         Memory.accesses.put(parDefn, access);
@@ -305,7 +329,8 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
         compDefn.type.accept(this, 0L);
 
         TYP.Type type = SemAn.ofType.get(compDefn);
-        Long size = type.accept(typeSizer, null);
+        //Long size = type.accept(typeSizer, null);
+        Long size = sizing(type);
         //size += pad(size);
         //I guess this isn't quite working
         MEM.RelAccess access = new MEM.RelAccess(size, offset, -1);
@@ -326,7 +351,8 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
             //    size += padded(retsize);
             //    offset += padded(retsize);
             //}
-            Long argSize = SemAn.ofType.get(argExpr).accept(typeSizer, null);
+            TYP.Type type = SemAn.ofType.get(argExpr); 
+            Long argSize = sizing(type);
             size += padded(argSize);
         }
         /*

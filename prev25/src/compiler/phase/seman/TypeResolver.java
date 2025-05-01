@@ -19,13 +19,13 @@ import compiler.phase.abstr.*;
  * 
  * and
  * 
- * typ a = <b : b>
- * typ b = <a : a>
+ * typ a = (b : b)
+ * typ b = (a : a)
  * 
  * but allows
  * 
- * typ a = <b : ^b>
- * typ b = <a : ^a>.
+ * typ a = (b : ^b)
+ * typ b = (a : ^a).
  * 
  * Should do two passes.
  * 

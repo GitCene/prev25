@@ -25,7 +25,8 @@ public class SemAn extends Phase {
 
 	/** Tester for nodes that represent name usage. */
 	private static final Predicate<AST.Node> validForDefAt = //
-			(AST.Node node) -> (node instanceof AST.NameType) || (node instanceof AST.NameExpr);
+			(AST.Node node) -> (node instanceof AST.NameType) || (node instanceof AST.NameExpr) //;
+				|| (node instanceof AST.CompExpr); // Let's suppose this doesn't break anything.
 
 	/** Mapping of names to definitions. */
 	public static final Attribute<AST.Defn> defAt = new Attribute<AST.Defn>(validForDefAt);

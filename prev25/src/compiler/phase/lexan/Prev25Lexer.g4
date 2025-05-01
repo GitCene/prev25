@@ -25,7 +25,7 @@ lexer grammar Prev25Lexer;
 
 // 1. constants
 INTCONST		: [0-9]+ ;
-fragment CHARFRAG		: [ -&(-[\]-~] | '\\\'' | '\\\\' | '0x' [0-9A-F][0-9A-F] ;
+fragment CHARFRAG		: [ -&(-[\]-~] | '\\\'' | '\\\\' | '\\0x' [0-9A-F][0-9A-F] ;
 CHARCONST		: '\''CHARFRAG'\'' ;
 fragment STRFRAG		: [ !#-[\]-~] | '\\"' | '\\\\' | '\\0x' [0-9A-F][0-9A-F] ;
 STRCONST		: '"'STRFRAG+'"' ;

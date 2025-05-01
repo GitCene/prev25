@@ -788,6 +788,8 @@ public TYP.Type visit_helper(AST.RecType recType, AST.Node D) {
 		SemAn.ofType.put(compExpr, exprType);
 		SemAn.isConst.put(compExpr, false);
 		SemAn.isAddr.put(compExpr, true);
+		// Suppose this doesn't break things
+		SemAn.defAt.put(compExpr, compDefn);
 		return exprType;
 	}
 

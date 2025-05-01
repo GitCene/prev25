@@ -25,7 +25,7 @@ fun expressions() : int =
         extVar3 = 'a',
         extVar3 = '\\',
         extVar3 = '\'',
-        #extVar3 = '\0x61',
+        extVar3 = '\0x61',
         extVar3 = { 97*100/extVar1 : char },
 
         intVar2 = ^intVar1,
