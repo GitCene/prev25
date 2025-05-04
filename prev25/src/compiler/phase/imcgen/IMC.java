@@ -366,6 +366,13 @@ public class IMC {
 			this.temp = temp;
 		}
 
+		/**
+		 * Constructs a fresh temporary variable.
+		 */
+		public TEMP() {
+			this.temp = new MEM.Temp();
+		}
+
 		@Override
 		public <Result, Arg> Result accept(Visitor<Result, Arg> visitor, Arg accArg) {
 			return visitor.visit(this, accArg);

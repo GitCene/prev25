@@ -12,6 +12,7 @@ import compiler.phase.abstr.*;
 import compiler.phase.seman.*;
 import compiler.phase.memory.*;
 import compiler.phase.imcgen.*;
+import compiler.phase.imclin.*;
 
 /**
  * The Prev25 compiler.
@@ -34,7 +35,7 @@ public class Compiler {
 
 	/** All valid phases name of the compiler. */
 	private static final Vector<String> phaseNames = new Vector<String>(
-			Arrays.asList("none", "all", "lexan", "synan", "abstr", "seman", "memory", "imcgen"));
+			Arrays.asList("none", "all", "lexan", "synan", "abstr", "seman", "memory", "imcgen", "imclin"));
 
 	/**
 	 * Returns the value of a command line option.
@@ -217,7 +218,21 @@ public class Compiler {
 				}
 				if (cmdLineOptValues.get("--target-phase").equals("imcgen"))
 					break;
+				
+				// Linearization of intermediate code. 
+				 
+				try (ImcLin imclin = new ImcLin()) {
+					Abstr.tree.accept(new ChunkGenerator(), null);
+					imclin.log();
 
+					// if (true) {
+					// Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
+					// System.out.println("EXIT CODE: " + interpreter.run("_main"));
+					// }
+				}
+				if (cmdLineOptValues.get("--target-phase").equals("imclin"))
+					break;
+					
 				// Do not loop... ever.
 				break;
 			}

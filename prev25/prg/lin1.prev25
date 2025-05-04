@@ -1,0 +1,11 @@
+
+fun idi(p : int) : int =
+    return p + 1
+
+fun problem(y : int) : int = 
+    return 3*y
+
+
+fun main() : int =
+    let var x : int
+    in x = idi(problem(2)), return x end
