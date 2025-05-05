@@ -103,13 +103,12 @@ public class ImcGenerator implements AST.FullVisitor<IMC.Instr, Object> {
                 try {
                     value = Long.valueOf(atomExpr.value);
                 } catch (Exception e) {
-                    throw new Report.Error("TODO: handle Int size exceptions (Java Long)");
+                    throw new Report.Error("TO DO: handle Int size exceptions (Java Long)");
                 } 
                 break;
         
             // SEM:7,8
             case AST.AtomExpr.Type.BOOL:
-                // TODO: check where along the way this becomes 0/1
                 if (atomExpr.value.equals("1"))
                     value = 1L;
                 else if (atomExpr.value.equals("0"))
@@ -128,9 +127,9 @@ public class ImcGenerator implements AST.FullVisitor<IMC.Instr, Object> {
                 value = 0L;
                 break;
             case AST.AtomExpr.Type.STR:
-            // TODO:
-                value = 69L;
-                break;
+                IMC.NAME strname = new IMC.NAME(Memory.strings.get(atomExpr).label);
+                ImcGen.expr.put(atomExpr, strname);
+                return strname;
             default:
                 throw new Report.InternalError();
         }
@@ -153,7 +152,6 @@ public class ImcGenerator implements AST.FullVisitor<IMC.Instr, Object> {
                 expr = new IMC.UNOP(IMC.UNOP.Oper.NOT, subExprCode);
                 break;
             case PTR:
-            // TODO
                 try {
                     expr = ((IMC.MEM8) subExprCode).addr;                
                 } catch (ClassCastException e) {
@@ -234,31 +232,25 @@ public class ImcGenerator implements AST.FullVisitor<IMC.Instr, Object> {
     // SEM:15
     @Override
     public IMC.Instr visit(AST.NameExpr nameExpr, Object o) {
-        // ExtVar is MEM;NAME
-        // LocalVar is MEM; stack access
-        // Par is ... 
-        //System.out.print("Trying to get defAt of " + nameExpr + " " + nameExpr.name);
         AST.Defn nameDefn = SemAn.defAt.get(nameExpr);
-        //System.out.println(" : success");
 
         if (nameDefn instanceof AST.FunDefn) {
-            // TODO: how to get extFunDefn sorted?
-            if (nameDefn instanceof AST.ExtFunDefn)
-                return new IMC.NAME(new MEM.Label());
-            // In this case, just return a NAME of the function.
-            // Get the fun's frame and its label.
-            MEM.Label label = Memory.frames.get(nameDefn).label;
-            return new IMC.NAME(label);
+            MEM.Label label;
+            if (nameDefn instanceof AST.ExtFunDefn) {
+                label = new MEM.Label(nameExpr.name);
+            } else {
+                label = Memory.frames.get(nameDefn).label;
+            }
+            IMC.NAME name = new IMC.NAME(label);
+            ImcGen.expr.put(nameExpr, name);
+            return name;
         }
 
-        //System.out.print("Trying to get memory access of " + nameDefn + " " + nameDefn.name);
         MEM.Access access = Memory.accesses.get(nameDefn);
-        //System.out.println(" : success");
         IMC.Expr accessCode;
         if (access instanceof MEM.AbsAccess) {
             accessCode = new IMC.NAME(((MEM.AbsAccess)access).label);
         } else if (access instanceof MEM.RelAccess) {
-            // Have to find the FP of proper function.
             // TODO: in Memory, set depth of record components to -1?
             MEM.RelAccess relAccess = (MEM.RelAccess) access;
             
@@ -266,20 +258,13 @@ public class ImcGenerator implements AST.FullVisitor<IMC.Instr, Object> {
             MEM.Frame frame = this.frameStack.getFirst();
             Long frameIndex = frame.depth + 1 - nameDepth;
             
-            //System.out.printf("We have frameDepth %d and nameDepth %d so we need %d MEMs\n", frame.depth, nameDepth, frameIndex);
-            //frame = this.frameStack.get(frameIndex.intValue());
-            //assert nameDepth == frame.depth + 1;
             IMC.Expr FP = new IMC.TEMP(frame.FP);
             for (int i = 0; i < frameIndex; i++) {
                 FP = new IMC.MEM8(FP);
             }
-            //System.out.println("We got now: " + FP);
-            // TODO: test if this method works as envisioned.
-
-            //IMC.CONST FP = new IMC.CONST(0);
+            
             IMC.CONST offset = new IMC.CONST(relAccess.offset);
             IMC.BINOP accessArithm = new IMC.BINOP(IMC.BINOP.Oper.ADD, FP, offset);
-            //accessCode = new IMC.MEM8(accessArithm);
             accessCode = accessArithm;
         } else throw new Report.InternalError();
 
@@ -360,20 +345,16 @@ public class ImcGenerator implements AST.FullVisitor<IMC.Instr, Object> {
         Vector<IMC.Expr> args = new Vector<IMC.Expr>();
         //TODO: add the static link to arg!
         MEM.Frame currFrame = this.frameStack.getFirst();
+        long offsSum = 0L;
+
         args.add(new IMC.TEMP(currFrame.FP));
-        // offs.add + 8
-        //TODO: we've already seen these types. There may already be a way to have them saved?
-        // Otherwise, make a hashtable of a list of types of the params for each function...
+        offs.add(offsSum);
+        offsSum += 8L;
         for (AST.Expr arg : callExpr.argExprs) {
             IMC.Expr argCode = (IMC.Expr) arg.accept(this, o);
             args.add(argCode);
-            // Args aren't necessarily defAt. this is unnecessar?
-            // TODO: sort out.
-            //System.out.println("Trying to get defAt of arg " + arg);
-            //MEM.Access argAddr = Memory.accesses.get(SemAn.defAt.get(arg));
-            //offs.add(argCode.)
-            // This is something onyl needded for later.s
-            offs.add(0L);
+            offs.add(offsSum);
+            offsSum += memSize(SemAn.ofType.get(arg));
         }
         IMC.CALL call = new IMC.CALL(name, offs, args);
         ImcGen.expr.put(callExpr, call);
