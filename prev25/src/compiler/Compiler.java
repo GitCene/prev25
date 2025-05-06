@@ -9,6 +9,8 @@ import compiler.common.report.*;
 import compiler.phase.lexan.*;
 import compiler.phase.synan.*;
 import compiler.phase.abstr.*;
+import compiler.phase.asmgen.AsmGen;
+import compiler.phase.asmgen.AsmGenerator;
 import compiler.phase.seman.*;
 import compiler.phase.memory.*;
 import compiler.phase.imcgen.*;
@@ -225,14 +227,21 @@ public class Compiler {
 					Abstr.tree.accept(new ChunkGenerator(), null);
 					imclin.log();
 
-					// if (true) {
-					// Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
-					// System.out.println("EXIT CODE: " + interpreter.run("_main"));
-					// }
+					if (false) {
+					Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
+					System.out.println("EXIT CODE: " + interpreter.run("_main"));
+					}
 				}
 				if (cmdLineOptValues.get("--target-phase").equals("imclin"))
 					break;
-					
+
+				// Assembly code generation.
+				try (AsmGen asmgen = new AsmGen()) {
+					AsmGenerator asmGenerator = new AsmGenerator(ImcLin.dataChunks(), ImcLin.codeChunks());
+					asmGenerator.munch();
+					asmGenerator.emitAll();
+				}
+			
 				// Do not loop... ever.
 				break;
 			}

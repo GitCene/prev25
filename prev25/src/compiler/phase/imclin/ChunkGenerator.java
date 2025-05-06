@@ -55,8 +55,8 @@ public class ChunkGenerator implements AST.FullVisitor<Object, Object> {
         public Expr visit(CJUMP cjump, Vector<IMC.Stmt> vec) {
 			Expr cond = cjump.cond.accept(this, vec);
 
-            Expr neg = cjump.negAddr.accept(this, vec);
             Expr pos = cjump.posAddr.accept(this, vec);
+            Expr neg = cjump.negAddr.accept(this, vec);
 
             CJUMP freshCjump = new CJUMP(cond, pos, neg);
             vec.add(freshCjump);

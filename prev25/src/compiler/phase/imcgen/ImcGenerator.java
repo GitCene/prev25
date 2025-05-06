@@ -414,9 +414,12 @@ public class ImcGenerator implements AST.FullVisitor<IMC.Instr, Object> {
         
         IMC.LABEL ifTrueLabel = new IMC.LABEL(new MEM.Label());
         IMC.LABEL ifFalseLabel = new IMC.LABEL(new MEM.Label());
+        IMC.LABEL endLabel = new IMC.LABEL(new MEM.Label());
         
+
         IMC.NAME ifTrueName = new IMC.NAME(ifTrueLabel.label);
         IMC.NAME ifFalseName = new IMC.NAME(ifFalseLabel.label);
+        IMC.NAME endName = new IMC.NAME(endLabel.label);
 
         IMC.CJUMP cjump = new IMC.CJUMP(cond, ifTrueName, ifFalseName);
         
@@ -426,14 +429,16 @@ public class ImcGenerator implements AST.FullVisitor<IMC.Instr, Object> {
         }
         IMC.STMTS thenStmtsCode = new IMC.STMTS(thenStmtsCodeVector);
 
-        IMC.JUMP jumpAfterThen = new IMC.JUMP(ifFalseName);
+        IMC.JUMP jumpToEnd = new IMC.JUMP(endName);
 
         Vector<IMC.Stmt> ifThenCodeVector = new Vector<IMC.Stmt>();
         ifThenCodeVector.add(cjump);
+        ifThenCodeVector.add(ifFalseLabel);
+        ifThenCodeVector.add(jumpToEnd);
         ifThenCodeVector.add(ifTrueLabel);
         ifThenCodeVector.add(thenStmtsCode);
-        ifThenCodeVector.add(jumpAfterThen);
-        ifThenCodeVector.add(ifFalseLabel);
+        ifThenCodeVector.add(jumpToEnd);
+        ifThenCodeVector.add(endLabel);
         IMC.STMTS ifThenCode = new IMC.STMTS(ifThenCodeVector);
         ImcGen.stmt.put(ifThenStmt, ifThenCode);
         return ifThenCode;
@@ -469,11 +474,11 @@ public class ImcGenerator implements AST.FullVisitor<IMC.Instr, Object> {
 
         Vector<IMC.Stmt> ifThenElseCodeVector = new Vector<IMC.Stmt>();
         ifThenElseCodeVector.add(cjump);
-        ifThenElseCodeVector.add(ifTrueLabel);
-        ifThenElseCodeVector.add(thenStmtsCode);
-        ifThenElseCodeVector.add(jumpToContinue);
         ifThenElseCodeVector.add(ifFalseLabel);
         ifThenElseCodeVector.add(elseStmtsCode);
+        ifThenElseCodeVector.add(jumpToContinue);
+        ifThenElseCodeVector.add(ifTrueLabel);
+        ifThenElseCodeVector.add(thenStmtsCode);
         ifThenElseCodeVector.add(jumpToContinue);
         ifThenElseCodeVector.add(continueLabel);
         
@@ -490,10 +495,12 @@ public class ImcGenerator implements AST.FullVisitor<IMC.Instr, Object> {
         IMC.LABEL condLabel = new IMC.LABEL(new MEM.Label());
         IMC.LABEL beginLabel = new IMC.LABEL(new MEM.Label());
         IMC.LABEL continueLabel = new IMC.LABEL(new MEM.Label());
+        IMC.LABEL endLabel = new IMC.LABEL(new MEM.Label());
         
         IMC.NAME condName = new IMC.NAME(condLabel.label);
         IMC.NAME beginName = new IMC.NAME(beginLabel.label);
         IMC.NAME continueName = new IMC.NAME(continueLabel.label);
+        IMC.NAME endName = new IMC.NAME(endLabel.label);
         
         IMC.CJUMP cjump = new IMC.CJUMP(cond, beginName, continueName);
         
@@ -504,14 +511,17 @@ public class ImcGenerator implements AST.FullVisitor<IMC.Instr, Object> {
         IMC.STMTS stmtsCode = new IMC.STMTS(stmtsCodeVector);
 
         IMC.JUMP jumpToCheck = new IMC.JUMP(condName);
+        IMC.JUMP jumpToEnd = new IMC.JUMP(endName);
 
         Vector<IMC.Stmt> whileCodeVector = new Vector<IMC.Stmt>();
         whileCodeVector.add(condLabel);
         whileCodeVector.add(cjump);
+        whileCodeVector.add(continueLabel);
+        whileCodeVector.add(jumpToEnd);
         whileCodeVector.add(beginLabel);
         whileCodeVector.add(stmtsCode);
         whileCodeVector.add(jumpToCheck);
-        whileCodeVector.add(continueLabel);
+        whileCodeVector.add(endLabel);
         
         IMC.STMTS whileCode = new IMC.STMTS(whileCodeVector);
         ImcGen.stmt.put(whileStmt, whileCode);

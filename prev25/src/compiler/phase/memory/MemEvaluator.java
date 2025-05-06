@@ -1,8 +1,8 @@
 package compiler.phase.memory;
 
 
-import java.util.HashMap;
-import java.util.Hashtable;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import compiler.phase.abstr.*;
 import compiler.phase.seman.*;
@@ -376,14 +376,45 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
             strCount++;
             // Skip the opening and closing quote
             String raw = expr.value.substring(1, expr.value.length() - 1);
-            raw = raw.replace("\\\"", "\"");
-            String sizecopy = raw.replaceAll("\\\\0x[0-9A-F][0-9A-F]", "|");
-            raw = raw.replace("\\\\", "\\");
-            sizecopy = sizecopy.replace("\\\\", "\\");
+            
+            //raw = raw.replace("\\\"", "\"");
+            //String sizecopy = raw.replaceAll("\\\\0x[0-9A-F][0-9A-F]", "|");
+            //raw = raw.replace("\\\\", "\\");
+            //sizecopy = sizecopy.replace("\\\\", "\\");
             // Calculate size accounting for \0xXX and for terminating null byte
-            Long size = (long) sizecopy.length() + 1;
+            //Long size = (long) sizecopy.length() + 1;
 
-            MEM.AbsAccess access = new MEM.AbsAccess(size, label, raw);
+            StringBuilder output = new StringBuilder();
+            Pattern pattern = Pattern.compile("\\\\(\\\\|\"|0x[0-9A-F]{2})");
+            Matcher matcher = pattern.matcher(raw);
+
+            int last = 0;
+            while (matcher.find()) {
+                output.append(raw, last, matcher.start());
+                String match = matcher.group(1);
+                switch (match) {
+                    case "\\":
+                        output.append('\\');
+                        break;
+                    case "\"":
+                        output.append('"');
+                        break;
+                    default:
+                        // \0xNN
+                        if (match.startsWith("0x")) {
+                            int value = Integer.parseInt(match.substring(2), 16);
+                            output.append((char) value);
+                        }
+                        break;
+                }
+                last = matcher.end();
+            }
+            output.append(raw.substring(last));
+            //output.append((char)0);
+            String str = output.toString();
+            Long size = (long) str.length(); // +1?
+
+            MEM.AbsAccess access = new MEM.AbsAccess(size, label, str);
             Memory.strings.put(expr, access);
         }
         return 0L;
