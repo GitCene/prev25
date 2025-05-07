@@ -25,6 +25,11 @@ public class ASM {
         public String labelText() {
             return (this.label == null ? "    " : this.label.label.name);
         }
+        
+        // Return string representation of instruction according to a physical register mapping.
+        public String mapped(HashMap<IMC.TEMP, String> mapping) {
+            return this.toString();
+        }
 
     }
 
@@ -55,8 +60,14 @@ public class ASM {
             }
         }
 
+        @Override
         public String toString() {
             return this.labelText() + " SET " + this.reg1.temp + "," + (this.isImmediate ? this.imm2.value : this.reg2.temp);
+        }
+
+        @Override
+        public String mapped(HashMap<IMC.TEMP, String> mapping) {
+            return this.labelText() + " SET " + mapping.get(this.reg1) + "," + (this.isImmediate ? this.imm2.value : mapping.get(this.reg2));
         }
     }
 
@@ -109,12 +120,16 @@ public class ASM {
         public Oper op;
         public boolean probable = false;
 
+        public Vector<IMC.TEMP> reads;
+
         public BRANCH(Oper op, IMC.TEMP cond, IMC.NAME pos, IMC.NAME neg) {
+            this.reads = new Vector<IMC.TEMP>();
             this.op = op;
             this.cond = cond;
             this.dest = pos;
             this.jumpsTo.add(pos);
             this.jumpsTo.add(neg);
+            this.reads.add(cond);
         }
 
         public String mnem() {
@@ -143,6 +158,11 @@ public class ASM {
 
         public String toString() {
             return this.labelText() + " " + this.mnem() + " " + this.cond.temp + "," + this.dest.label.name;
+        }
+
+        @Override
+        public String mapped(HashMap<IMC.TEMP, String> mapping) {
+            return this.labelText() + " " + this.mnem() + " " + mapping.get(this.cond) + "," + this.dest.label.name;
         }
     }
 
@@ -186,6 +206,11 @@ public class ASM {
 
         public String toString() {
             return this.labelText() + " " + this.mnem() + " " + this.reg1.temp +  "," + this.reg2.temp + "," + (isImmediate ? this.imm3.value : this.reg3.temp);
+        }
+
+        @Override
+        public String mapped(HashMap<IMC.TEMP, String> mapping) {
+            return this.labelText() + " " + this.mnem() + " " + mapping.get(this.reg1) +  "," + mapping.get(this.reg2) + "," + (isImmediate ? this.imm3.value : mapping.get(this.reg3));
         }
     }
 
@@ -375,6 +400,11 @@ public class ASM {
         public String toString() {
             return this.labelText() + " " + this.mnem() + " " + this.reg1.temp +  "," + this.reg2.temp + "," + (isImmediate ? this.imm3.value : this.reg3.temp);
         }
+        
+        @Override
+        public String mapped(HashMap<IMC.TEMP, String> mapping) {
+            return this.labelText() + " " + this.mnem() + " " + mapping.get(this.reg1) +  "," + mapping.get(this.reg2) + "," + (isImmediate ? this.imm3.value : mapping.get(this.reg3));
+        }
     }
 
     /**
@@ -407,6 +437,10 @@ public class ASM {
         //public HashMap<ASM.Instr, IMC.TEMP> readsDict;
         //public HashMap<ASM.Instr, IMC.TEMP> writesDict;
 
+        // For register allocation phase - subject to change
+        public HashMap<IMC.TEMP, String> physicalRegisters;
+
+
         public AsmChunk(String name) {
             this.asm = new Vector<Instr>();
             this.name = name;
@@ -428,6 +462,13 @@ public class ASM {
             System.out.println("##### ASM : " + this.name + " #####" );
             for (Instr instr : this.asm)
                 System.out.println(instr);
+        }
+        
+        public void emitPhysical() {
+            System.out.println("##### ASM : " + this.name + " #####" );
+            for (Instr instr : this.asm)
+                System.out.println(instr.mapped(this.physicalRegisters));
+            // For now, will not work if certain registers stay unmapped.
         }
     }
 
