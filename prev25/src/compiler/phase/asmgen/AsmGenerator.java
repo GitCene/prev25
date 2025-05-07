@@ -50,7 +50,8 @@ public class AsmGenerator {
             asmChunk.put(jmp);
         } else if (stmt instanceof IMC.CJUMP cj) {
             // Our CJUMP is BNZ to positive label.
-            ASM.BNZ bnz = new ASM.BNZ((IMC.TEMP)cj.cond, (IMC.NAME)cj.posAddr, (IMC.NAME)cj.negAddr);
+            //ASM.BNZ bnz = new ASM.BNZ((IMC.TEMP)cj.cond, (IMC.NAME)cj.posAddr, (IMC.NAME)cj.negAddr);
+            ASM.BRANCH bnz = new ASM.BRANCH(ASM.BRANCH.Oper.BNZ, (IMC.TEMP)cj.cond, (IMC.NAME)cj.posAddr, (IMC.NAME)cj.negAddr);
             asmChunk.put(bnz);
         } else if (stmt instanceof IMC.MOVE mov) {
             matchMove(mov, asmChunk);
@@ -136,24 +137,25 @@ public class AsmGenerator {
                 // temp is 0 -> arg1 == arg2. temp is -1 -> arg1 < arg2. temp is 1 -> arg1 > arg2.
                 // ugly code
                 ASM.CSET cset;
+                IMC.CONST val = new IMC.CONST(1L);
                 switch (binop.oper) {
                     case EQU:
-                        cset = new ASM.CSET(ASM.CSET.Oper.ZSZ, dest, temp);
+                        cset = new ASM.CSET(ASM.CSET.Oper.SZ, dest, temp, val, true);
                         break;
                     case NEQ:
-                        cset = new ASM.CSET(ASM.CSET.Oper.ZSNZ, dest, temp);
+                        cset = new ASM.CSET(ASM.CSET.Oper.SNZ, dest, temp, val, true);
                         break;
                     case LEQ:
-                        cset = new ASM.CSET(ASM.CSET.Oper.ZSNN, dest, temp);
+                        cset = new ASM.CSET(ASM.CSET.Oper.SNN, dest, temp, val, true);
                         break;
                     case GEQ:
-                        cset = new ASM.CSET(ASM.CSET.Oper.ZSNP, dest, temp);
+                        cset = new ASM.CSET(ASM.CSET.Oper.SNP, dest, temp, val, true);
                         break;
                     case LTH:
-                        cset = new ASM.CSET(ASM.CSET.Oper.ZSN, dest, temp);
+                        cset = new ASM.CSET(ASM.CSET.Oper.SN, dest, temp, val, true);
                         break;
                     case GTH:
-                        cset = new ASM.CSET(ASM.CSET.Oper.ZSP, dest, temp);
+                        cset = new ASM.CSET(ASM.CSET.Oper.SP, dest, temp, val, true);
                         break;
                     default:
                         throw new Report.InternalError();
@@ -164,14 +166,15 @@ public class AsmGenerator {
     }
 
     public void matchUnop(IMC.UNOP unop, IMC.TEMP dest, ASM.AsmChunk asmChunk) {
+        IMC.CONST nul = new IMC.CONST(0L);
         switch(unop.oper) {
             case NOT:
-                ASM.NOR not = new ASM.NOR(dest, (IMC.TEMP)unop.subExpr);
+                ASM.BITOP not = new ASM.BITOP(ASM.BITOP.Oper.NOR, dest, (IMC.TEMP)unop.subExpr, nul);
                 asmChunk.put(not);
                 return;
             case NEG:
                 IMC.TEMP tempDest = new IMC.TEMP();
-                ASM.NOR nott = new ASM.NOR(tempDest, (IMC.TEMP)unop.subExpr);
+                ASM.BITOP nott = new ASM.BITOP(ASM.BITOP.Oper.NOR, tempDest, (IMC.TEMP)unop.subExpr, nul);
                 ASM.BINOP add = new ASM.BINOP(IMC.BINOP.Oper.ADD, dest, tempDest, new IMC.CONST(1L));
                 asmChunk.put(nott);                
                 asmChunk.put(add);
@@ -180,22 +183,22 @@ public class AsmGenerator {
     }
 
     public void matchLoadOcta(IMC.MEM8 mem, IMC.TEMP dest, ASM.AsmChunk asmChunk) {
-        ASM.LOAD load = new ASM.LOAD(dest, (IMC.TEMP)mem.addr, 8L);
+        ASM.MEM load = new ASM.MEM(false, 8L, dest, (IMC.TEMP)mem.addr, new IMC.CONST(0L));
         asmChunk.put(load);
     }
     
     public void matchLoadSingle(IMC.MEM1 mem, IMC.TEMP dest, ASM.AsmChunk asmChunk) {
-        ASM.LOAD load = new ASM.LOAD(dest, (IMC.TEMP)mem.addr, 1L);
+        ASM.MEM load = new ASM.MEM(false, 1L, dest, (IMC.TEMP)mem.addr, new IMC.CONST(0L));
         asmChunk.put(load);
     }
         
     public void matchStoreOcta(IMC.TEMP src, IMC.MEM8 mem, ASM.AsmChunk asmChunk) {
-        ASM.STORE store = new ASM.STORE(src, (IMC.TEMP)mem.addr, 8L);
+        ASM.MEM store = new ASM.MEM(true, 8L, src, (IMC.TEMP)mem.addr, new IMC.CONST(0L));
         asmChunk.put(store);
     }
     
     public void matchStoreSingle(IMC.TEMP src, IMC.MEM1 mem, ASM.AsmChunk asmChunk) {
-        ASM.STORE store = new ASM.STORE(src, (IMC.TEMP)mem.addr, 1L);
+        ASM.MEM store = new ASM.MEM(true, 1L, src, (IMC.TEMP)mem.addr, new IMC.CONST(0L));
         asmChunk.put(store);
     }
 
@@ -205,12 +208,14 @@ public class AsmGenerator {
         ASM.PUSHJ pushj = new ASM.PUSHJ(new IMC.TEMP(), (IMC.NAME)call.addr);
         asmChunk.put(pushj);
         // Ensure that return register is treated properly during register allocation.
+        // MMIX special registers.
     }
 
     public void matchMovReg(IMC.Expr src, IMC.TEMP dest, ASM.AsmChunk asmChunk) {
-        IMC.TEMP zeroRegister = new IMC.TEMP();
+        //IMC.TEMP zeroRegister = new IMC.TEMP();
         // TODO: hardwire this one to MMIX's r0, which is always 0.
-        ASM.BINOP add = new ASM.BINOP(IMC.BINOP.Oper.ADD, dest, zeroRegister, src);
-        asmChunk.put(add);
+        //ASM.BINOP add = new ASM.BINOP(IMC.BINOP.Oper.ADD, dest, zeroRegister, src);
+        ASM.SET set = new ASM.SET(dest, src);
+        asmChunk.put(set);
     }
 }
