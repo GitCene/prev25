@@ -7,17 +7,15 @@ import compiler.phase.imclin.LIN;
 
 public class AsmGenerator {
 
-    Vector<LIN.DataChunk> dataChunks;
-    Vector<LIN.CodeChunk> codeChunks;
+    public Vector<LIN.DataChunk> dataChunks;
+    public Vector<LIN.CodeChunk> codeChunks;
 
-    Vector<ASM.AsmChunk> asm;
-
-    IMC.LABEL currLabel = null;
+    public IMC.LABEL currLabel = null;
 
     public AsmGenerator(Vector<LIN.DataChunk> dataChunks, Vector<LIN.CodeChunk> codeChunks) {
         this.dataChunks = dataChunks;
         this.codeChunks = codeChunks;
-        this.asm = new Vector<ASM.AsmChunk>();
+        //this.asm = new Vector<ASM.AsmChunk>();
     }
     
     public void munch() {
@@ -27,12 +25,12 @@ public class AsmGenerator {
             for (IMC.Stmt stmt : codeChunk.stmts()) {
                 topLevelMatch(stmt, asmChunk);
             }
-            asm.add(asmChunk);
+            AsmGen.asm.add(asmChunk);
         }
     }
 
     public void emitAll() {
-        for (ASM.AsmChunk ch : this.asm) {
+        for (ASM.AsmChunk ch : AsmGen.asm) {
             ch.emit();
         }
     }

@@ -7,6 +7,7 @@ import java.util.*;
 
 import compiler.common.report.*;
 import compiler.phase.lexan.*;
+import compiler.phase.livean.*;
 import compiler.phase.synan.*;
 import compiler.phase.abstr.*;
 import compiler.phase.asmgen.AsmGen;
@@ -239,9 +240,20 @@ public class Compiler {
 				try (AsmGen asmgen = new AsmGen()) {
 					AsmGenerator asmGenerator = new AsmGenerator(ImcLin.dataChunks(), ImcLin.codeChunks());
 					asmGenerator.munch();
-					asmGenerator.emitAll();
+					//asmGenerator.emitAll();
 				}
-			
+				if (cmdLineOptValues.get("--target-phase").equals("asmgen"))
+					break;
+				
+				// Liveness analysis.
+				try (LiveAn livean = new LiveAn()) {
+					LivenessAnalyzer livenessAnalyzer = new LivenessAnalyzer(AsmGen.asm);
+					livenessAnalyzer.analyze();
+					livenessAnalyzer.emitAll();
+				}
+				if (cmdLineOptValues.get("--target-phase").equals("livean"))
+					break;
+
 				// Do not loop... ever.
 				break;
 			}

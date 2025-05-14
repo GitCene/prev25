@@ -10,6 +10,7 @@ import compiler.phase.memory.MEM;
 /**
  * Assembly instructions for MMIX.
  */
+// TODO: change the IMC.TEMPS to MEM.Temps.
 public class ASM {
     
     /**
@@ -17,13 +18,23 @@ public class ASM {
      */
     public static abstract class Instr {
         public IMC.LABEL label;
+        public static HashMap<IMC.LABEL, ASM.Instr> labelMap = new HashMap<IMC.LABEL, ASM.Instr>();
+        public Vector<IMC.TEMP> use = new Vector<IMC.TEMP>();
+        public Vector<IMC.TEMP> def = new Vector<IMC.TEMP>();
+        //public Vector<ASM.Instr> pred = new Vector<ASM.Instr>();
+        public Vector<ASM.Instr> succ = new Vector<ASM.Instr>();
 
         public void setLabel(IMC.LABEL lab) {
             this.label = lab;
+            Instr.labelMap.put(lab, this);
         }
 
         public String labelText() {
             return (this.label == null ? "    " : this.label.label.name);
+        }
+
+        public void addSucc(ASM.Instr instr) {
+            this.succ.add(instr);
         }
         
         // Return string representation of instruction according to a physical register mapping.
@@ -41,22 +52,17 @@ public class ASM {
         public IMC.TEMP reg2;
         public IMC.CONST imm2;
         public boolean isImmediate;
-
-        public Vector<IMC.TEMP> reads;
-        public Vector<IMC.TEMP> writes;
         
         public SET(IMC.TEMP reg1, IMC.Expr arg2) {
-            this.reads = new Vector<IMC.TEMP>();
-            this.writes = new Vector<IMC.TEMP>();
             this.reg1 = reg1;
-            this.writes.add(reg1);
+            this.def.add(reg1);
             if (arg2 instanceof IMC.CONST c) {
                 this.imm2 = c;
                 this.isImmediate = true;
             } else {
                 this.reg2 = (IMC.TEMP) arg2;
                 this.isImmediate = false;
-                this.reads.add(reg2);
+                this.use.add(reg2);
             }
         }
 
@@ -120,16 +126,13 @@ public class ASM {
         public Oper op;
         public boolean probable = false;
 
-        public Vector<IMC.TEMP> reads;
-
         public BRANCH(Oper op, IMC.TEMP cond, IMC.NAME pos, IMC.NAME neg) {
-            this.reads = new Vector<IMC.TEMP>();
             this.op = op;
             this.cond = cond;
             this.dest = pos;
             this.jumpsTo.add(pos);
             this.jumpsTo.add(neg);
-            this.reads.add(cond);
+            this.use.add(cond);
         }
 
         public String mnem() {
@@ -180,25 +183,18 @@ public class ASM {
         public IMC.CONST imm3;
         public boolean isImmediate;
 
-        public Vector<IMC.TEMP> reads;
-        public Vector<IMC.TEMP> writes;
-        
-
         public TriOp(IMC.TEMP reg1, IMC.TEMP reg2, IMC.Expr arg3) {
-            this.reads = new Vector<IMC.TEMP>();
-            this.writes = new Vector<IMC.TEMP>();
-
             this.reg1 = reg1;
-            this.writes.add(reg1);
+            this.def.add(reg1);
             this.reg2 = reg2;
-            this.reads.add(reg2);
+            this.use.add(reg2);
             if (arg3 instanceof IMC.CONST c) {
                 this.imm3 = c;
                 isImmediate = true;
             } else {
                 this.reg3 = (IMC.TEMP) arg3;
                 isImmediate = false;
-                this.reads.add(reg3);
+                this.use.add(reg3);
             }
         }
 
@@ -365,26 +361,21 @@ public class ASM {
         public IMC.CONST imm3;
         public boolean isImmediate;
 
-        public Vector<IMC.TEMP> reads;
-        public Vector<IMC.TEMP> writes;
-
         public MEM(boolean isStore, Long size, IMC.TEMP arg1, IMC.TEMP arg2, IMC.Expr arg3) {
-            this.reads = new Vector<IMC.TEMP>();
-            this.writes = new Vector<IMC.TEMP>();
             this.reg1 = arg1;
             this.reg2 = arg2;
             if (!isStore)
-                this.writes.add(reg1);
+                this.def.add(reg1);
             else
-                this.reads.add(reg1);
-            this.reads.add(reg2);
+                this.use.add(reg1);
+            this.use.add(reg2);
             if (arg3 instanceof IMC.CONST c) {
                 this.imm3 = c;
                 isImmediate = true;
             } else {
                 this.reg3 = (IMC.TEMP) reg3;
                 isImmediate = false;
-                this.reads.add(reg3);
+                this.use.add(reg3);
             }
             this.isStore = isStore;
             assert size == 8L || size == 1L;
@@ -428,7 +419,7 @@ public class ASM {
      * An assembly chunk for a code chunk.
      */
     public static class AsmChunk {
-        private Vector<Instr> asm;
+        public Vector<Instr> asm;
         public IMC.LABEL currLabel;
         public String name;
 

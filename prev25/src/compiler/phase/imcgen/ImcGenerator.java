@@ -148,8 +148,18 @@ public class ImcGenerator implements AST.FullVisitor<IMC.Instr, Object> {
             case ADD:
                 expr = subExprCode;
                 break;
+            // TODO: figure out when it is bitwise not and when it is logical not
             case NOT:
-                expr = new IMC.UNOP(IMC.UNOP.Oper.NOT, subExprCode);
+                if (subExprCode instanceof IMC.CONST c) {
+                    TYP.Type exprType = SemAn.ofType.get(pfxExpr);
+                    if (exprType.actualType().equals(TYP.BoolType.type))
+                        expr = new IMC.CONST(c.value == 1 ? 1 : 0);
+                    else 
+                        // TODO: this representation...
+                        expr = new IMC.CONST(~c.value);
+                }
+                else
+                    expr = new IMC.UNOP(IMC.UNOP.Oper.NOT, subExprCode);
                 break;
             case PTR:
                 try {
@@ -159,7 +169,10 @@ public class ImcGenerator implements AST.FullVisitor<IMC.Instr, Object> {
                 } 
                 break;
             case SUB:
-                expr = new IMC.UNOP(IMC.UNOP.Oper.NEG, subExprCode);
+                if (subExprCode instanceof IMC.CONST c)
+                    expr = new IMC.CONST(-c.value);
+                else 
+                    expr = new IMC.UNOP(IMC.UNOP.Oper.NEG, subExprCode);
                 break;
             default:
                 throw new Report.InternalError();
@@ -173,48 +186,95 @@ public class ImcGenerator implements AST.FullVisitor<IMC.Instr, Object> {
         IMC.Expr arg1 = (IMC.Expr) binExpr.fstExpr.accept(this, o);
         IMC.Expr arg2 = (IMC.Expr) binExpr.sndExpr.accept(this, o);
         IMC.Expr expr;
-        switch (binExpr.oper) {
-            case ADD:
-                expr = new IMC.BINOP(IMC.BINOP.Oper.ADD, arg1, arg2);
-                break;
-            case SUB:
-                expr = new IMC.BINOP(IMC.BINOP.Oper.SUB, arg1, arg2);
-                break;
-            case MUL:
-                expr = new IMC.BINOP(IMC.BINOP.Oper.MUL, arg1, arg2);
-                break;
-            case DIV:
-                expr = new IMC.BINOP(IMC.BINOP.Oper.DIV, arg1, arg2);
-                break;
-            case MOD:
-                expr = new IMC.BINOP(IMC.BINOP.Oper.MOD, arg1, arg2);
-                break;
-            case AND:
-                expr = new IMC.BINOP(IMC.BINOP.Oper.AND, arg1, arg2);
-                break;
-            case OR:
-                expr = new IMC.BINOP(IMC.BINOP.Oper.OR, arg1, arg2);
-                break;
-            case EQU:
-                expr = new IMC.BINOP(IMC.BINOP.Oper.EQU, arg1, arg2);
-                break;
-            case NEQ:
-                expr = new IMC.BINOP(IMC.BINOP.Oper.NEQ, arg1, arg2);
-                break;
-            case LTH:
-                expr = new IMC.BINOP(IMC.BINOP.Oper.LTH, arg1, arg2);
-                break;
-            case GTH:
-                expr = new IMC.BINOP(IMC.BINOP.Oper.GTH, arg1, arg2);
-                break;
-            case LEQ:
-                expr = new IMC.BINOP(IMC.BINOP.Oper.LEQ, arg1, arg2);
-                break;
-            case GEQ:
-                expr = new IMC.BINOP(IMC.BINOP.Oper.GEQ, arg1, arg2);
-                break;
-            default:
-                throw new Report.InternalError();
+        // TODO: make const resolution better
+        if (arg1 instanceof IMC.CONST c1 && arg2 instanceof IMC.CONST c2) {
+            switch (binExpr.oper) {
+                case ADD:
+                    expr = new IMC.CONST(c1.value + c2.value);
+                    break;
+                case SUB:
+                    expr = new IMC.CONST(c1.value - c2.value);
+                    break;
+                case MUL:
+                    expr = new IMC.CONST(c1.value * c2.value);
+                    break;
+                case DIV:
+                    expr = new IMC.CONST(c1.value / c2.value);
+                    break;
+                case MOD:
+                    expr = new IMC.CONST(c1.value % c2.value);
+                    break;
+                case AND:
+                    expr = new IMC.CONST(c1.value & c2.value);
+                    break;
+                case OR:
+                    expr = new IMC.CONST(c1.value | c2.value);
+                    break;
+                case EQU:
+                    expr = new IMC.CONST(c1.value == c2.value ? 1 : 0);
+                    break;
+                case NEQ:
+                    expr = new IMC.CONST(c1.value != c2.value ? 1 : 0);
+                    break;
+                case LTH:
+                    expr = new IMC.CONST(c1.value < c2.value ? 1 : 0);
+                    break;
+                case GTH:
+                    expr = new IMC.CONST(c1.value > c2.value ? 1 : 0);
+                    break;
+                case LEQ:
+                    expr = new IMC.CONST(c1.value <= c2.value ? 1 : 0);
+                    break;
+                case GEQ:
+                    expr = new IMC.CONST(c1.value >= c2.value ? 1 : 0);
+                    break;
+                default:
+                    throw new Report.InternalError();
+            }
+        } else {
+            switch (binExpr.oper) {
+                case ADD:
+                    expr = new IMC.BINOP(IMC.BINOP.Oper.ADD, arg1, arg2);
+                    break;
+                case SUB:
+                    expr = new IMC.BINOP(IMC.BINOP.Oper.SUB, arg1, arg2);
+                    break;
+                case MUL:
+                    expr = new IMC.BINOP(IMC.BINOP.Oper.MUL, arg1, arg2);
+                    break;
+                case DIV:
+                    expr = new IMC.BINOP(IMC.BINOP.Oper.DIV, arg1, arg2);
+                    break;
+                case MOD:
+                    expr = new IMC.BINOP(IMC.BINOP.Oper.MOD, arg1, arg2);
+                    break;
+                case AND:
+                    expr = new IMC.BINOP(IMC.BINOP.Oper.AND, arg1, arg2);
+                    break;
+                case OR:
+                    expr = new IMC.BINOP(IMC.BINOP.Oper.OR, arg1, arg2);
+                    break;
+                case EQU:
+                    expr = new IMC.BINOP(IMC.BINOP.Oper.EQU, arg1, arg2);
+                    break;
+                case NEQ:
+                    expr = new IMC.BINOP(IMC.BINOP.Oper.NEQ, arg1, arg2);
+                    break;
+                case LTH:
+                    expr = new IMC.BINOP(IMC.BINOP.Oper.LTH, arg1, arg2);
+                    break;
+                case GTH:
+                    expr = new IMC.BINOP(IMC.BINOP.Oper.GTH, arg1, arg2);
+                    break;
+                case LEQ:
+                    expr = new IMC.BINOP(IMC.BINOP.Oper.LEQ, arg1, arg2);
+                    break;
+                case GEQ:
+                    expr = new IMC.BINOP(IMC.BINOP.Oper.GEQ, arg1, arg2);
+                    break;
+                default:
+                    throw new Report.InternalError();
+            }
         }
         ImcGen.expr.put(binExpr, expr);
         return expr;
