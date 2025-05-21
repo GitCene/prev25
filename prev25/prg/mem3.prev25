@@ -1,9 +1,0 @@
-fun main() : int =
-    let
-        var a : bool
-        var b : [10]bool 
-        var c : [2]bool
-        var d : bool
-    in
-        return 1
-    end 

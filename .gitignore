@@ -4,3 +4,6 @@
 *.jar
 *.py
 PATH
+doc
+/prev25/prg/*
+/prev25/kolegovi_testi/*

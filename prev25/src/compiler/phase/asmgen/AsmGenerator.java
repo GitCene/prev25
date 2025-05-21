@@ -181,22 +181,22 @@ public class AsmGenerator {
     }
 
     public void matchLoadOcta(IMC.MEM8 mem, IMC.TEMP dest, ASM.AsmChunk asmChunk) {
-        ASM.MEM load = new ASM.MEM(false, 8L, dest, (IMC.TEMP)mem.addr, new IMC.CONST(0L));
+        ASM.MEMO load = new ASM.MEMO(false, 8L, dest, (IMC.TEMP)mem.addr, new IMC.CONST(0L));
         asmChunk.put(load);
     }
     
     public void matchLoadSingle(IMC.MEM1 mem, IMC.TEMP dest, ASM.AsmChunk asmChunk) {
-        ASM.MEM load = new ASM.MEM(false, 1L, dest, (IMC.TEMP)mem.addr, new IMC.CONST(0L));
+        ASM.MEMO load = new ASM.MEMO(false, 1L, dest, (IMC.TEMP)mem.addr, new IMC.CONST(0L));
         asmChunk.put(load);
     }
         
     public void matchStoreOcta(IMC.TEMP src, IMC.MEM8 mem, ASM.AsmChunk asmChunk) {
-        ASM.MEM store = new ASM.MEM(true, 8L, src, (IMC.TEMP)mem.addr, new IMC.CONST(0L));
+        ASM.MEMO store = new ASM.MEMO(true, 8L, src, (IMC.TEMP)mem.addr, new IMC.CONST(0L));
         asmChunk.put(store);
     }
     
     public void matchStoreSingle(IMC.TEMP src, IMC.MEM1 mem, ASM.AsmChunk asmChunk) {
-        ASM.MEM store = new ASM.MEM(true, 1L, src, (IMC.TEMP)mem.addr, new IMC.CONST(0L));
+        ASM.MEMO store = new ASM.MEMO(true, 1L, src, (IMC.TEMP)mem.addr, new IMC.CONST(0L));
         asmChunk.put(store);
     }
 

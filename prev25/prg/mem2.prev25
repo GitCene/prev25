@@ -1,9 +1,0 @@
-typ a = < a : int, b : [10]bool>
-typ b = < a : bool, b : [10] a, c : a >
-
-typ d = { a : int, b : [10]bool}
-typ e = { a : bool, b : [10] a, c : a }
-
-typ f = <a : b, b : d, c : e, d : <a : int, b : int, c : <a : int, b: int, c : e>>>
-
-fun main() : int = return 1

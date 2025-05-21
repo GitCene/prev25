@@ -1,9 +1,0 @@
-fun main() : int =
-    f(),
-    return 1
-
-fun f() : void =
-    g()
-
-fun g() : void =
-    f()

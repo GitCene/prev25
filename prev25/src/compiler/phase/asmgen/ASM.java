@@ -12,13 +12,18 @@ import compiler.phase.memory.MEM;
  */
 // TODO: change the IMC.TEMPS to MEM.Temps.
 public class ASM {
-    
+    private static Object nc(Object in) {
+        if (in == null) {
+            return 0;
+        }
+        else return in;
+    }
     /**
      * Corresponds to a line of assembly.
      */
     public static abstract class Instr {
         public IMC.LABEL label;
-        public static HashMap<IMC.LABEL, ASM.Instr> labelMap = new HashMap<IMC.LABEL, ASM.Instr>();
+        public static HashMap<MEM.Label, ASM.Instr> labelMap = new HashMap<MEM.Label, ASM.Instr>();
         public Vector<IMC.TEMP> use = new Vector<IMC.TEMP>();
         public Vector<IMC.TEMP> def = new Vector<IMC.TEMP>();
         //public Vector<ASM.Instr> pred = new Vector<ASM.Instr>();
@@ -26,7 +31,7 @@ public class ASM {
 
         public void setLabel(IMC.LABEL lab) {
             this.label = lab;
-            Instr.labelMap.put(lab, this);
+            Instr.labelMap.put(lab.label, this);
         }
 
         public String labelText() {
@@ -38,7 +43,7 @@ public class ASM {
         }
         
         // Return string representation of instruction according to a physical register mapping.
-        public String mapped(HashMap<IMC.TEMP, String> mapping) {
+        public String mapped(HashMap<MEM.Temp, Integer> mapping) {
             return this.toString();
         }
 
@@ -72,8 +77,8 @@ public class ASM {
         }
 
         @Override
-        public String mapped(HashMap<IMC.TEMP, String> mapping) {
-            return this.labelText() + " SET " + mapping.get(this.reg1) + "," + (this.isImmediate ? this.imm2.value : mapping.get(this.reg2));
+        public String mapped(HashMap<MEM.Temp, Integer> mapping) {
+            return this.labelText() + " SET $" + nc(mapping.get(this.reg1.temp)) + "," + (this.isImmediate ? this.imm2.value : "$" + nc(mapping.get(this.reg2.temp)));
         }
     }
 
@@ -81,10 +86,10 @@ public class ASM {
      * Instructions that can redirect execution.
      */
     public static abstract class Jump extends Instr {
-        public Vector<IMC.NAME> jumpsTo;
+        public Vector<MEM.Label> jumpsTo;
 
         public Jump() {
-            this.jumpsTo = new Vector<IMC.NAME>();
+            this.jumpsTo = new Vector<MEM.Label>();
         }
     }
 
@@ -97,7 +102,7 @@ public class ASM {
 
         public JMP(IMC.NAME name) {
             this.dest = name;
-            this.jumpsTo.add(name);
+            this.jumpsTo.add(name.label);
         }
 
         public String toString() {
@@ -130,8 +135,8 @@ public class ASM {
             this.op = op;
             this.cond = cond;
             this.dest = pos;
-            this.jumpsTo.add(pos);
-            this.jumpsTo.add(neg);
+            this.jumpsTo.add(pos.label);
+            this.jumpsTo.add(neg.label);
             this.use.add(cond);
         }
 
@@ -164,8 +169,8 @@ public class ASM {
         }
 
         @Override
-        public String mapped(HashMap<IMC.TEMP, String> mapping) {
-            return this.labelText() + " " + this.mnem() + " " + mapping.get(this.cond) + "," + this.dest.label.name;
+        public String mapped(HashMap<MEM.Temp, Integer> mapping) {
+            return this.labelText() + " " + this.mnem() + " $" + nc(mapping.get(this.cond.temp)) + "," + this.dest.label.name;
         }
     }
 
@@ -205,8 +210,8 @@ public class ASM {
         }
 
         @Override
-        public String mapped(HashMap<IMC.TEMP, String> mapping) {
-            return this.labelText() + " " + this.mnem() + " " + mapping.get(this.reg1) +  "," + mapping.get(this.reg2) + "," + (isImmediate ? this.imm3.value : mapping.get(this.reg3));
+        public String mapped(HashMap<MEM.Temp, Integer> mapping) {
+            return this.labelText() + " " + this.mnem() + " $" + nc(mapping.get(this.reg1.temp)) +  ",$" + nc(mapping.get(this.reg2.temp)) + "," + (isImmediate ? this.imm3.value : "$" + nc(mapping.get(this.reg3.temp)));
         }
     }
 
@@ -351,7 +356,7 @@ public class ASM {
      * MMIX's load and store instructions.
      * Support byte and octa.
      */
-    public static class MEM extends Instr {
+    public static class MEMO extends Instr {
         public boolean isStore;
         public Long size;
 
@@ -361,7 +366,7 @@ public class ASM {
         public IMC.CONST imm3;
         public boolean isImmediate;
 
-        public MEM(boolean isStore, Long size, IMC.TEMP arg1, IMC.TEMP arg2, IMC.Expr arg3) {
+        public MEMO(boolean isStore, Long size, IMC.TEMP arg1, IMC.TEMP arg2, IMC.Expr arg3) {
             this.reg1 = arg1;
             this.reg2 = arg2;
             if (!isStore)
@@ -393,8 +398,8 @@ public class ASM {
         }
         
         @Override
-        public String mapped(HashMap<IMC.TEMP, String> mapping) {
-            return this.labelText() + " " + this.mnem() + " " + mapping.get(this.reg1) +  "," + mapping.get(this.reg2) + "," + (isImmediate ? this.imm3.value : mapping.get(this.reg3));
+        public String mapped(HashMap<MEM.Temp, Integer> mapping) {
+            return this.labelText() + " " + this.mnem() + " $" + nc(mapping.get(this.reg1.temp)) +  ",$" + nc(mapping.get(this.reg2.temp)) + "," + (isImmediate ? this.imm3.value : "$" + nc(mapping.get(this.reg3.temp)));
         }
     }
 
@@ -429,7 +434,7 @@ public class ASM {
         //public HashMap<ASM.Instr, IMC.TEMP> writesDict;
 
         // For register allocation phase - subject to change
-        public HashMap<IMC.TEMP, String> physicalRegisters;
+        public HashMap<MEM.Temp, Integer> coloring;
 
 
         public AsmChunk(String name) {
@@ -458,8 +463,7 @@ public class ASM {
         public void emitPhysical() {
             System.out.println("##### ASM : " + this.name + " #####" );
             for (Instr instr : this.asm)
-                System.out.println(instr.mapped(this.physicalRegisters));
-            // For now, will not work if certain registers stay unmapped.
+                System.out.println(instr.mapped(this.coloring));
         }
     }
 

@@ -24,8 +24,8 @@ public class LivenessAnalyzer {
                 if (prevInstr != null)
                     prevInstr.addSucc(instr);
                 if (instr instanceof ASM.Jump jmp)
-                    for (IMC.NAME name : jmp.jumpsTo) {
-                        jmp.addSucc(ASM.Instr.labelMap.get(name));
+                    for (MEM.Label lab : jmp.jumpsTo) {
+                        jmp.addSucc(ASM.Instr.labelMap.get(lab));
                         prevInstr = null;
                     }
                 else
@@ -90,12 +90,14 @@ public class LivenessAnalyzer {
     public void analyze() {
         this.setSucc();
         this.setInsOuts();
+        this.buildGraph();
     }
 
     public void emitAll() {
         System.out.println("########## LIVENESS ANALYSIS OUTPUT ##########");
         for (ASM.AsmChunk chunk : this.asm)
             this.emitChunk(chunk);
+        System.out.println();
     }
 
     public void emitChunk(ASM.AsmChunk chunk) {
@@ -112,5 +114,24 @@ public class LivenessAnalyzer {
         System.out.print("# OUT of prev: ");
         for (MEM.Temp temp : this.out.get(instr))
             System.out.printf("%s ", temp);
+    }
+
+    public void buildGraph() {
+        for (ASM.AsmChunk chunk : this.asm) {
+            LIV.AsmGraph chunkGraph = new LIV.AsmGraph();
+            for (ASM.Instr instr : chunk.asm) {
+                HashSet<MEM.Temp> inSet = this.in.get(instr);
+                for (MEM.Temp temp : inSet) {
+                    chunkGraph.addAllEdges(temp, inSet);
+                }
+                HashSet<MEM.Temp> outSet = this.out.get(instr);
+                for (MEM.Temp temp : outSet) {
+                    chunkGraph.addAllEdges(temp, outSet);
+                }
+            }
+            //System.out.println("Displaying graph for chunk: " + chunk.name);
+            //chunkGraph.display();
+            LiveAn.graphMap.put(chunk, chunkGraph);
+        }
     }
 }

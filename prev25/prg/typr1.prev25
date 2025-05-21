@@ -1,4 +1,0 @@
-typ a = int
-typ b = int 
-typ struct1 = <a : a, b : b, c : < a : int, b: a> >
-typ struct2 = <a : struct1, b : < a:int, c: struct1>>

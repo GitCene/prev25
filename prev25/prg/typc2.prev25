@@ -1,7 +1,0 @@
-typ a = <a:int, b:int>
-typ b = ^a
-
-var aa : a
-
-fun main() : int =
-    aa.a = 2

@@ -14,6 +14,8 @@ import compiler.phase.asmgen.AsmGen;
 import compiler.phase.asmgen.AsmGenerator;
 import compiler.phase.seman.*;
 import compiler.phase.memory.*;
+import compiler.phase.regall.RegAll;
+import compiler.phase.regall.RegisterAllocator;
 import compiler.phase.imcgen.*;
 import compiler.phase.imclin.*;
 
@@ -31,14 +33,14 @@ public class Compiler {
 
 	/** Names of command line options. */
 	private static final HashSet<String> cmdLineOptNames = new HashSet<String>(Arrays.asList("--src-file-name",
-			"--dst-file-name", "--target-phase", "--logged-phase", "--xml", "--xsl", "--dev-mode"));
+			"--dst-file-name", "--target-phase", "--logged-phase", "--xml", "--xsl", "--dev-mode", "--num-regs"));
 
 	/** Values of command line options indexed by their command line option name. */
 	private static final HashMap<String, String> cmdLineOptValues = new HashMap<String, String>();
 
 	/** All valid phases name of the compiler. */
 	private static final Vector<String> phaseNames = new Vector<String>(
-			Arrays.asList("none", "all", "lexan", "synan", "abstr", "seman", "memory", "imcgen", "imclin"));
+			Arrays.asList("none", "all", "lexan", "synan", "abstr", "seman", "memory", "imcgen", "imclin", "asmgen", "livean", "regall"));
 
 	/**
 	 * Returns the value of a command line option.
@@ -249,10 +251,30 @@ public class Compiler {
 				try (LiveAn livean = new LiveAn()) {
 					LivenessAnalyzer livenessAnalyzer = new LivenessAnalyzer(AsmGen.asm);
 					livenessAnalyzer.analyze();
-					livenessAnalyzer.emitAll();
+					//livenessAnalyzer.emitAll();
 				}
 				if (cmdLineOptValues.get("--target-phase").equals("livean"))
 					break;
+
+				// Register allocation.
+				try (RegAll regall = new RegAll()) {
+					String regsCmdline = cmdLineOptValues.get("--num-regs");
+					int regs = 42;
+					if (regsCmdline == null) {
+						Report.warning("Did not pass number of registers using '--num-regs' flag; defaulting to 42");
+					} else try {
+						regs = Integer.parseInt(regsCmdline);
+					} catch (NumberFormatException e) {
+						Report.warning("Could not parse number of registers passed using '--num-regs' flag; defaulting to 42");
+					}
+					RegisterAllocator registerAllocator = new RegisterAllocator(AsmGen.asm, LiveAn.graphMap, regs);
+					boolean success = registerAllocator.allocate();
+					if (success)
+						registerAllocator.emitAll();
+				}
+				if (cmdLineOptValues.get("--target-phase").equals("regall"))
+					break;
+
 
 				// Do not loop... ever.
 				break;
