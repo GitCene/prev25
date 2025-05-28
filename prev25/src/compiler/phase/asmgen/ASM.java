@@ -462,8 +462,10 @@ public class ASM {
         
         public void emitPhysical() {
             System.out.println("##### ASM : " + this.name + " #####" );
-            for (Instr instr : this.asm)
+            for (Instr instr : this.asm) {
+                System.out.printf("%-30s    ---->    ", instr.toString());                
                 System.out.println(instr.mapped(this.coloring));
+            }
         }
     }
 

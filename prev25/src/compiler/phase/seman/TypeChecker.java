@@ -733,6 +733,11 @@ public TYP.Type visit_helper(AST.RecType recType, AST.Node D) {
 		public AST.Defn visit(AST.NameType nameType, String field) {
 			// Its type is maybe a NameType, in which case jump around ...
 			AST.TypDefn nameTypeTypDefn = (AST.TypDefn) SemAn.defAt.get(nameType);
+			// Does this sin from TypeResolver get solved here?
+			//TYP.Type refType = SemAn.isType.get(nameTypeTypDefn); 
+			//TYP.Type type = (TYP.NameType) SemAn.isType.get(nameType);
+			//if (type instanceof TYP.NameType nt)
+			//	nt.setActType(refType);
 			return nameTypeTypDefn.type.accept(this, field);
 		}
 

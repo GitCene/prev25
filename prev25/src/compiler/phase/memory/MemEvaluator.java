@@ -412,7 +412,7 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
             output.append(raw.substring(last));
             //output.append((char)0);
             String str = output.toString();
-            Long size = (long) str.length(); // +1?
+            Long size = (long) str.length() + 1;
 
             MEM.AbsAccess access = new MEM.AbsAccess(size, label, str);
             Memory.strings.put(expr, access);

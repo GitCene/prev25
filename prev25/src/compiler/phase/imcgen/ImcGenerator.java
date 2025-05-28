@@ -284,7 +284,12 @@ public class ImcGenerator implements AST.FullVisitor<IMC.Instr, Object> {
     @Override
     public IMC.Instr visit(AST.SfxExpr sfxExpr, Object o) {
         IMC.Expr ptr = (IMC.Expr) sfxExpr.subExpr.accept(this, o);
-        IMC.MEM8 mem = new IMC.MEM8(ptr);
+        IMC.Expr mem;
+        TYP.Type dataType = SemAn.ofType.get(sfxExpr);
+        if (dataType == TYP.BoolType.type || dataType == TYP.CharType.type)
+            mem = new IMC.MEM1(ptr);
+        else 
+            mem = new IMC.MEM8(ptr);
         ImcGen.expr.put(sfxExpr, mem);
         return mem;
     }
@@ -610,4 +615,13 @@ public class ImcGenerator implements AST.FullVisitor<IMC.Instr, Object> {
         return ret;
     }
 
+    // Size lol
+    @Override
+    public IMC.Instr visit(AST.SizeExpr sizeExpr, Object o) {
+        TYP.Type type = SemAn.ofType.get(sizeExpr);
+        Long typesize = memSize(type);
+        IMC.CONST sizeconst = new IMC.CONST(typesize);
+        ImcGen.expr.put(sizeExpr, sizeconst);
+        return sizeconst;
+    }
 }

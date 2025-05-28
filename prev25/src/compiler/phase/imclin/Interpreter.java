@@ -1,5 +1,6 @@
 package compiler.phase.imclin;
 
+import java.io.IOException;
 import java.util.*;
 
 import compiler.common.report.*;
@@ -11,8 +12,6 @@ import compiler.phase.imcgen.*;
  */
 public class Interpreter {
 
-    private Scanner scanner = new Scanner(System.in);
-
     private boolean debug = false;
 
     /** if CJUMP cond is <strong>false</strong>, fall through */
@@ -23,6 +22,8 @@ public class Interpreter {
      * the program, use it instead of native function
      */
     private final boolean ALLOW_OVERRIDE_NATIVE = true;
+
+    private final boolean USE_ADDITIONAL_INTERPRETER_ONLY_FUNCTIONS = false;
 
     private Random runtimeRandom;
 
@@ -40,7 +41,7 @@ public class Interpreter {
 
     private HashMap<MEM.Label, LIN.CodeChunk> callMemLabels;
 
-    private static HashMap<String, Function<Long>> nativeFunctions;
+    private HashMap<String, Function<Long>> nativeFunctions;
 
     private MEM.Temp SP;
 
@@ -56,20 +57,8 @@ public class Interpreter {
 
         this.memory = new HashMap<Long, Byte>();
         this.temps = new HashMap<MEM.Temp, Long>();
-
-        nativeFunctions = new HashMap<>();
-        nativeFunctions.put("_new", Interpreter::native_new);
-        nativeFunctions.put("_del", Interpreter::native_del);
-        nativeFunctions.put("_exit", Interpreter::native_exit);
-        nativeFunctions.put("_getint", Interpreter::native_getint);
-        nativeFunctions.put("_putint", Interpreter::native_putint);
-        nativeFunctions.put("_getchar", Interpreter::native_getchar);
-        nativeFunctions.put("_putchar", Interpreter::native_putchar);
-        nativeFunctions.put("_puts", Interpreter::native_puts);
-        nativeFunctions.put("_printf", Interpreter::native_printf);
-        nativeFunctions.put("_random", Interpreter::native_random);
-        nativeFunctions.put("_at", Interpreter::native_at);
-        nativeFunctions.put("_seed", Interpreter::native_seed);
+        this.labelsToAddr = new Vector<>();
+        this.nativeFunctions = new HashMap<>();
 
         SP = new MEM.Temp();
         tempST(SP, 0x7FFFFFFFFFFFFFF8l);
@@ -83,14 +72,49 @@ public class Interpreter {
 
         this.jumpMemLabels = new HashMap<MEM.Label, Integer>();
         this.callMemLabels = new HashMap<MEM.Label, LIN.CodeChunk>();
-        this.labelsToAddr = new Vector<>();
-        loadCodeChunks(codeChunks);
+
+        if (ALLOW_OVERRIDE_NATIVE) {
+            loadCodeChunks(codeChunks);
+        }
+
+        addNative("malloc", Interpreter::native_malloc);
+        addNative("new", Interpreter::native_malloc);
+        addNative("free", Interpreter::native_free);
+        addNative("del", Interpreter::native_free);
+        addNative("die", Interpreter::native_die);
+        addNative("exit", Interpreter::native_exit);
+        addNative("putint", Interpreter::native_putint);
+        addNative("putint_hex", Interpreter::native_putint_hex);
+        addNative("putint_bin", Interpreter::native_putint_bin);
+        addNative("putuint", Interpreter::native_putuint);
+        addNative("putchar", Interpreter::native_putchar);
+        addNative("puts", Interpreter::native_puts);
+        addNative("getint", Interpreter::native_getint);
+        addNative("getchar", Interpreter::native_getchar);
+        addNative("gets", Interpreter::native_gets);
+
+        if (USE_ADDITIONAL_INTERPRETER_ONLY_FUNCTIONS) {
+            addNative("printf", Interpreter::native_printf);
+            addNative("random", Interpreter::native_random);
+            addNative("at", Interpreter::native_at);
+            addNative("seed", Interpreter::native_seed);
+        }
+
+        if (!ALLOW_OVERRIDE_NATIVE) {
+            loadCodeChunks(codeChunks);
+        }
+    }
+
+    private void addNative(String name, Function<Long> fn) {
+        var label = new MEM.Label(name);
+        this.labelsToAddr.addLast(label);
+        this.nativeFunctions.put(label.name, fn);
     }
 
     private void loadDataChunks(Vector<LIN.DataChunk> dataChunks) {
         for (LIN.DataChunk dataChunk : dataChunks) {
             if (debug) {
-                System.out.printf("### %s @ %d\n", dataChunk.label.name, tempLD(HP, false));
+                System.out.printf("### (SET) %s @ %d\n", dataChunk.label.name, tempLD(HP, false));
             }
             this.dataMemLabels.put(dataChunk.label, tempLD(HP, false));
             if (dataChunk.init != null) {
@@ -108,10 +132,8 @@ public class Interpreter {
             this.labelsToAddr.addLast(codeChunk.frame.label);
             Vector<IMC.Stmt> stmts = codeChunk.stmts();
             for (int stmtOffset = 0; stmtOffset < stmts.size(); stmtOffset++) {
-                if (stmts.get(stmtOffset) instanceof IMC.LABEL) {
+                if (stmts.get(stmtOffset) instanceof IMC.LABEL)
                     jumpMemLabels.put(((IMC.LABEL) stmts.get(stmtOffset)).label, stmtOffset);
-                    //System.out.println("Put label " + ((IMC.LABEL)stmts.get(stmtOffset)).label.name + " with offset " + stmtOffset);
-                }
             }
         }
     }
@@ -122,7 +144,7 @@ public class Interpreter {
 
     private void memST(Long address, Long value, final int size, boolean debug) {
         if (debug)
-            System.out.printf("### [%d] <- %d\n", address, value);
+            System.out.printf("### (ST) [%d] <- %d\n", address, value);
         for (int b = 0; b < size; b++) {
             long longval = value & 0xFF;
             byte byteval = (byte) longval;
@@ -148,7 +170,7 @@ public class Interpreter {
             value = (value << 8) + (longval < 0 ? longval + 0x100 : longval);
         }
         if (debug)
-            System.out.printf("### %d <- [%d]\n", value, address);
+            System.out.printf("### (LD) %d <- [%d]\n", value, address);
         return value;
     }
 
@@ -160,22 +182,22 @@ public class Interpreter {
         temps.put(temp, value);
         if (debug) {
             if (temp == SP) {
-                System.out.printf("### SP <- %d\n", value);
+                System.out.printf("### (ST) SP <- %d\n", value);
                 return;
             }
             if (temp == FP) {
-                System.out.printf("### FP <- %d\n", value);
+                System.out.printf("### (ST) FP <- %d\n", value);
                 return;
             }
             if (temp == RV) {
-                System.out.printf("### RV <- %d\n", value);
+                System.out.printf("### (ST) RV <- %d\n", value);
                 return;
             }
             if (temp == HP) {
-                System.out.printf("### HP <- %d\n", value);
+                System.out.printf("### (ST) HP <- %d\n", value);
                 return;
             }
-            System.out.printf("### T%d <- %d\n", temp.temp, value);
+            System.out.printf("### (ST) T%d <- %d\n", temp.temp, value);
             return;
         }
     }
@@ -193,22 +215,22 @@ public class Interpreter {
         }
         if (debug) {
             if (temp == SP) {
-                System.out.printf("### LD %d <- SP\n", value);
+                System.out.printf("### (LD) %d <- SP\n", value);
                 return value;
             }
             if (temp == FP) {
-                System.out.printf("### LD %d <- FP\n", value);
+                System.out.printf("### (LD) %d <- FP\n", value);
                 return value;
             }
             if (temp == RV) {
-                System.out.printf("### LD %d <- RV\n", value);
+                System.out.printf("### (LD) %d <- RV\n", value);
                 return value;
             }
             if (temp == HP) {
-                System.out.printf("### LD %d <- HP\n", value);
+                System.out.printf("### (LD) %d <- HP\n", value);
                 return value;
             }
-            System.out.printf("### LD %d <- T%d\n", value, temp.temp);
+            System.out.printf("### (LD) %d <- T%d\n", value, temp.temp);
             return value;
         }
         return value;
@@ -287,11 +309,11 @@ public class Interpreter {
 
         @Override
         public Long visit(IMC.NAME imcName, Object arg) {
-            var addr = dataMemLabels.get(imcName.label);
+            var addr = getByLabel(dataMemLabels, imcName.label);
             if (addr != null) {
                 return addr;
             }
-            addr = (long) inter.labelsToAddr.indexOf(imcName.label);
+            addr = (long) getByLabel(inter.labelsToAddr, imcName.label);
             return (addr >= 0) ? addr : null;
         }
 
@@ -408,8 +430,9 @@ public class Interpreter {
                 if (imcMove.src instanceof IMC.CALL) {
                     call((IMC.CALL) imcMove.src);
                     src = memLD(tempLD(SP), 8);
-                } else
+                } else {
                     src = imcMove.src.accept(new ExprInterpreter(this.interpreter), null);
+                }
                 tempST(t.temp, src);
                 return null;
             }
@@ -454,7 +477,10 @@ public class Interpreter {
             case IMC.TEMP t -> {
                 var addr = t.accept(new ExprInterpreter(interpreter), null);
                 if (addr != null) {
-                    addrLabel = interpreter.labelsToAddr.get(addr.intValue());
+                    try {
+                        addrLabel = interpreter.labelsToAddr.get(addr.intValue());
+                    } catch (ArrayIndexOutOfBoundsException e) {
+                    }
                 }
             }
             default -> {
@@ -466,7 +492,7 @@ public class Interpreter {
                 throw new Report.Error("No label exists on address: " + stringify(imcCall.addr));
             }
 
-            if (ALLOW_OVERRIDE_NATIVE && (callMemLabels.get(addrLabel) != null)) {
+            if (ALLOW_OVERRIDE_NATIVE && (getByLabel(callMemLabels, addrLabel) != null)) {
                 funCall(addrLabel);
                 return;
             }
@@ -488,7 +514,7 @@ public class Interpreter {
         MEM.Temp storedFP = null;
         MEM.Temp storedRV = null;
 
-        LIN.CodeChunk chunk = callMemLabels.get(entryMemLabel);
+        LIN.CodeChunk chunk = getByLabel(callMemLabels, entryMemLabel);
         MEM.Frame frame = chunk.frame;
         Vector<IMC.Stmt> stmts = chunk.stmts();
         int stmtOffset;
@@ -508,7 +534,7 @@ public class Interpreter {
             tempST(frame.FP, tempLD(SP));
             tempST(SP, tempLD(SP) - frame.size);
             // Jump to the body.
-            stmtOffset = jumpMemLabels.get(chunk.entryLabel);
+            stmtOffset = getByLabel(jumpMemLabels, chunk.entryLabel);
         }
 
         /* BODY */
@@ -526,12 +552,10 @@ public class Interpreter {
                 }
 
                 if (label != null) {
-                    Integer offset = jumpMemLabels.get(label);
+                    Integer offset = getByLabel(jumpMemLabels, label);
                     if (offset == null) {
-                        //System.out.println("Could not get label: " + label.name + " 's offset");
                         throw new Report.InternalError();
                     }
-                    //System.out.println("Got label: " + label.name + " 's offset: " + offset);
                     stmtOffset = offset;
                 }
 
@@ -586,12 +610,12 @@ public class Interpreter {
      * <p>
      * <strong>Signatures:</strong>
      * <p>
-     * {@code fun new(size: int): ^any}
+     * {@code fun malloc(size: int): ^any}
      * 
      * @param argNum number of arguments passed to this function
      */
-    private long native_new(int argNum) {
-        if (argNum <= 0) { throw new Report.Error("(native_new) Not enough arguments"); }
+    private long native_malloc(int argNum) {
+        if (argNum <= 0) { throw new Report.Error("(native_malloc) Not enough arguments"); }
         Long size = memLD(tempLD(SP, false) + 1 * 8, 8, false);
         Long addr = tempLD(HP);
         tempST(HP, addr + size);
@@ -604,11 +628,25 @@ public class Interpreter {
      * <p>
      * <strong>Signatures:</strong>
      * <p>
-     * {@code fun del(ptr: ^any): void}
+     * {@code fun free(ptr: ^any): void}
      * 
      * @param argNum number of arguments passed to this function
      */
-    private long native_del(int argNum) {
+    private long native_free(int argNum) {
+        return 0;
+    }
+
+    /**
+     * Exit the program with {@code 0}
+     * <p>
+     * <strong>Signatures:</strong>
+     * <p>
+     * {@code fun die(): void}
+     * 
+     * @param argNum number of arguments passed to this function
+     */
+    private long native_die(int argNum) {
+        System.exit(0);
         return 0;
     }
 
@@ -624,11 +662,10 @@ public class Interpreter {
      * @param argNum number of arguments passed to this function
      */
     private long native_exit(int argNum) {
-        if (argNum > 0) {
-            Long exitCode = memLD(tempLD(SP, false) + 1 * 8, 8, false);
-            System.exit(exitCode.intValue());
-        }
-        System.exit(0);
+        if (argNum <= 0) { throw new Report.Error("(native_exit) Not enough arguments"); }
+
+        Long exitCode = memLD(tempLD(SP, false) + 1 * 8, 8, false);
+        System.exit(exitCode.intValue());
         return 0;
     }
 
@@ -649,6 +686,59 @@ public class Interpreter {
     }
 
     /**
+     * Print integer as binary to stdout
+     * <p>
+     * <strong>Signatures:</strong>
+     * <p>
+     * {@code fun putint_bin(n: int): void}
+     * 
+     * @param argNum number of arguments passed to this function
+     */
+    private long native_putint_bin(int argNum) {
+        if (argNum <= 0) { throw new Report.Error("(native_putint) Not enough arguments"); }
+        Long c = memLD(tempLD(SP, false) + 1 * 8, 8, false);
+        var s = Long.toBinaryString(c);
+        System.out.print("0b" + "0".repeat(64 - s.length()) + s);
+        return 0;
+    }
+
+    /**
+     * Print integer as hexadecimal to stdout
+     * <p>
+     * <strong>Signatures:</strong>
+     * <p>
+     * {@code fun putint_hex(n: int): void}
+     * 
+     * @param argNum number of arguments passed to this function
+     */
+    private long native_putint_hex(int argNum) {
+        if (argNum <= 0) { throw new Report.Error("(native_putint) Not enough arguments"); }
+        Long c = memLD(tempLD(SP, false) + 1 * 8, 8, false);
+        if ((c > ((1L << 31) - 1)) || (c < -((1L << 31) - 1))) {
+            System.out.printf("0x%016x", c);
+        } else {
+            System.out.printf("0x%08x", c);
+        }
+        return 0;
+    }
+
+    /**
+     * Print unsigned integer to stdout
+     * <p>
+     * <strong>Signatures:</strong>
+     * <p>
+     * {@code fun putuint(n: int): void}
+     * 
+     * @param argNum number of arguments passed to this function
+     */
+    private long native_putuint(int argNum) {
+        if (argNum <= 0) { throw new Report.Error("(native_putint) Not enough arguments"); }
+        Long c = memLD(tempLD(SP, false) + 1 * 8, 8, false);
+        System.out.print(Long.toUnsignedString(c));
+        return 0;
+    }
+
+    /**
      * Get integer from stdin
      * <p>
      * <strong>Signatures:</strong>
@@ -658,8 +748,67 @@ public class Interpreter {
      * @param argNum number of arguments passed to this function
      */
     private long native_getint(int argNum) {
-        Long l = scanner.nextLong();
-        memST(tempLD(SP), (long) l, 8, false);
+        long l = 0;
+        try {
+            long sgn = 1;
+            int c = System.in.read();
+            while ((c == ' ') || (c == '\n') || (c == '\r') || (c == '\t')) {
+                c = System.in.read();
+            }
+            if (c == '-') {
+                c = System.in.read();
+                sgn = -1;
+            } else if (c == '+') { c = System.in.read(); }
+            while ((c >= '0') && (c <= '9')) {
+                l *= 10;
+                l += c - '0';
+                c = System.in.read();
+            }
+            l *= sgn;
+        } catch (IOException e) {
+            throw new Report.Error(e.getMessage());
+        }
+        memST(tempLD(SP), l, 8, false);
+        return 0;
+    }
+
+    /**
+     * Get line from stdin (including {@code '\n'})
+     * <p>
+     * Reads maximum of {@code size - 1} bytes
+     * <p>
+     * Pust null byte at the end
+     * <p>
+     * <strong>Signatures:</strong>
+     * <p>
+     * {@code fun gets(buf: ^char, size: int): int}
+     * 
+     * @param argNum number of arguments passed to this function
+     */
+    private long native_gets(int argNum) {
+        if (argNum < 2) { throw new Report.Error("(native_gets) Not enough arguments"); }
+        Long bufPtr = memLD(tempLD(SP, false) + 1 * 8, 8, false);
+        Long maxLen = memLD(tempLD(SP, false) + 2 * 8, 8, false) - 1L;
+        try {
+            int i = 0;
+            int c = System.in.read();
+            while ((i < maxLen) && (c != -1) && ((char) c != '\n')) {
+                memST(bufPtr + i, (long) c, 1);
+
+                if (i + 1 >= maxLen) { i++; break; }
+                c = System.in.read();
+                i++;
+            }
+
+            if ((i < maxLen) && ((char) c == '\n')) {
+                memST(bufPtr + i, (long) c, 1);
+                i++;
+            }
+            memST(bufPtr + i, 0L, 1);
+            memST(tempLD(SP), (long) i, 8, false);
+        } catch (IOException e) {
+            throw new Report.Error(e.getMessage());
+        }
         return 0;
     }
 
@@ -852,16 +1001,29 @@ public class Interpreter {
             case 'd':
                 sb.append(getArg(argOff, argNum));
                 break;
-            case 'x':
-                sb.append(Long.toHexString(getArg(argOff, argNum)));
+            case 'x': {
+                var arg = getArg(argOff, argNum);
+                if ((arg > ((1 << 31) - 1)) || (arg < -((1 << 31) - 1))) {
+                    sb.append(String.format("0x%016x", arg));
+                } else {
+                    sb.append(String.format("0x%08x", arg));
+                }
+            }
                 break;
-            case 'X':
-                sb.append(Long.toHexString(getArg(argOff, argNum)).toUpperCase());
+            // case 'X':
+            // sb.append(Long.toHexString(getArg(argOff, argNum)).toUpperCase());
+            // break;
+            case 'b': {
+                var s = Long.toBinaryString(getArg(argOff, argNum));
+                sb.append("0b");
+                sb.append("0".repeat(64 - s.length()));
+                sb.append(s);
+            }
                 break;
-            case 'b':
+            case 'z':
                 sb.append((getArg(argOff, argNum) != 0) ? "1" : "0");
                 break;
-            case 'B':
+            case 'Z':
                 sb.append((getArg(argOff, argNum) != 0) ? "true" : "false");
                 break;
             case 'c':
@@ -870,12 +1032,19 @@ public class Interpreter {
             case 's':
                 sb.append(ptrToJavaString(getArg(argOff, argNum)));
                 break;
-            case 'p':
-                sb.append("@" + String.format("%016x", getArg(argOff, argNum)));
+            case 'p': {
+                var arg = getArg(argOff, argNum);
+                if ((arg > ((1 << 31) - 1)) || (arg < -((1 << 31) - 1))) {
+                    sb.append(String.format("@0x%016x", arg));
+                } else {
+                    sb.append(String.format("@0x%08x", arg));
+                }
+            }
+                // sb.append(String.format("@0x%016x", getArg(argOff, argNum)));
                 break;
-            case 'P':
-                sb.append("@" + String.format("%016X", getArg(argOff, argNum)));
-                break;
+            // case 'P':
+            // sb.append("@" + String.format("%016X", getArg(argOff, argNum)));
+            // break;
             default:
                 continue;
             }
@@ -983,4 +1152,22 @@ public class Interpreter {
         }
     }
 
+    private static <T> T getByLabel(Map<MEM.Label, T> map, MEM.Label key) {
+        for (var e : map.entrySet()) {
+            if (e.getKey().name.equals(key.name)) {
+                return e.getValue();
+            }
+        }
+        return null;
+    }
+
+    private static int getByLabel(List<MEM.Label> list, MEM.Label key) {
+        for (int i = 0; i < list.size(); i++) {
+            var e = list.get(i);
+            if (e.name.equals(key.name)) {
+                return i;
+            }
+        }
+        return -1;
+    }
 }

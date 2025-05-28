@@ -235,5 +235,16 @@ public class ChunkGenerator implements AST.FullVisitor<Object, Object> {
         return null;
     }
 
+    //TODOing missing data chunks
+    @Override
+    public Object visit(AST.VarDefn varDefn, Object o) {
+        MEM.Access varAccess = Memory.accesses.get(varDefn);
+        if (varAccess instanceof MEM.AbsAccess varAbsAccess) {
+            LIN.DataChunk varChunk = new LIN.DataChunk(varAbsAccess);
+            ImcLin.addDataChunk(varChunk);
+        }
+        return null;
+    }
+
     
 }

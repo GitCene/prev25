@@ -284,18 +284,21 @@ public class TypeResolver implements AST.FullVisitor<TYP.Type, TypeResolver.Mode
 
 	@Override
 	public TYP.Type visit(AST.NameType nameType, Mode mode) {
+		// TODO: fix bin_search_tree.
 		TYP.NameType type;
 		TYP.Type refType;
 		switch (mode) {
 			case Mode.FIRST:
 				type = new TYP.NameType(nameType.name);
 				SemAn.isType.put(nameType, type);
+				//System.out.printf("put into isType under name %s the type %s\n", nameType.name, type);
 				return type;
 			case Mode.SECOND:
 				type = (TYP.NameType) SemAn.isType.get(nameType);
 				AST.Defn def = SemAn.defAt.get(nameType);
 				if (def == null)
 					throw new Report.Error(nameType, "Odd behaviour involving : " + nameType.name);
+				//System.out.printf("Got def of type %s : %s %s %s\n", nameType.name, def, def.name, def.type);
 				if (circularRecursionTracker.add(nameType.id) == false) {
 					// We have come back to the same name we have already seen.
 					// Maybe there was valid recursion along the way:
@@ -303,9 +306,10 @@ public class TypeResolver implements AST.FullVisitor<TYP.Type, TypeResolver.Mode
 						circularRecursionTracker.remove(nameType.id);
 						if (!SemAn.validForIsType.test(def))
 							throw new Report.Error(def, "Cannot resolve type name: " + nameType.name);
-							refType = SemAn.isType.get(def); 
+						refType = SemAn.isType.get(def); 
+						// Breaks structs if here. But causes stack overflow if not here.
 						if (refType == null) 
-							throw new Report.Error(def, "Cannot resolve type name: " + nameType.name);	
+							throw new Report.Error(def, "Cannot resolve type name (isType is null): " + nameType.name);	
 						type.setActType(refType);
 						return type;
 					}

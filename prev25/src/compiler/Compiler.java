@@ -225,18 +225,23 @@ public class Compiler {
 					break;
 				
 				// Linearization of intermediate code. 
+
 				 
 				try (ImcLin imclin = new ImcLin()) {
 					Abstr.tree.accept(new ChunkGenerator(), null);
 					imclin.log();
 
-					if (false) {
-					Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
-					System.out.println("EXIT CODE: " + interpreter.run("_main"));
+					if (true) {
+						Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
+						System.out.println("EXIT CODE: " + interpreter.run("_main"));
 					}
 				}
 				if (cmdLineOptValues.get("--target-phase").equals("imclin"))
 					break;
+
+									
+				boolean stopper = true;
+				if (stopper) break;
 
 				// Assembly code generation.
 				try (AsmGen asmgen = new AsmGen()) {
