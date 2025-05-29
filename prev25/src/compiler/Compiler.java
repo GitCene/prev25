@@ -10,14 +10,17 @@ import compiler.phase.lexan.*;
 import compiler.phase.livean.*;
 import compiler.phase.synan.*;
 import compiler.phase.abstr.*;
+import compiler.phase.asmgen.ASM;
 import compiler.phase.asmgen.AsmGen;
 import compiler.phase.asmgen.AsmGenerator;
+import compiler.phase.asmgen.ASM.AsmChunk;
 import compiler.phase.seman.*;
 import compiler.phase.memory.*;
 import compiler.phase.regall.RegAll;
 import compiler.phase.regall.RegisterAllocator;
 import compiler.phase.imcgen.*;
 import compiler.phase.imclin.*;
+import compiler.phase.imclin.LIN.DataChunk;
 
 /**
  * The Prev25 compiler.
@@ -239,10 +242,6 @@ public class Compiler {
 				if (cmdLineOptValues.get("--target-phase").equals("imclin"))
 					break;
 
-									
-				boolean stopper = true;
-				if (stopper) break;
-
 				// Assembly code generation.
 				try (AsmGen asmgen = new AsmGen()) {
 					AsmGenerator asmGenerator = new AsmGenerator(ImcLin.dataChunks(), ImcLin.codeChunks());
@@ -274,12 +273,14 @@ public class Compiler {
 					}
 					RegisterAllocator registerAllocator = new RegisterAllocator(AsmGen.asm, LiveAn.graphMap, regs);
 					boolean success = registerAllocator.allocate();
-					if (success)
-						registerAllocator.emitAll();
+					//if (success)
+					//	registerAllocator.emitAll();
 				}
 				if (cmdLineOptValues.get("--target-phase").equals("regall"))
 					break;
 
+				// Finalization.
+				finalize(AsmGen.asm, ImcLin.dataChunks());
 
 				// Do not loop... ever.
 				break;
@@ -296,4 +297,15 @@ public class Compiler {
 		}
 	}
 
+	// Do what is needed and emit proper assembly.
+	public static void finalize(Vector<ASM.AsmChunk> asm, Vector<LIN.DataChunk> dataChunks) {
+		System.out.println("%%%%% MMIX assembly output");
+		System.out.println("LOC #100");
+		for (DataChunk dataChunk : dataChunks) {
+			System.out.printf("%s BYTE \"%s\",0\n", dataChunk.label.name, dataChunk.init);
+		}
+		for (AsmChunk asmChunk : asm) {
+			asmChunk.emitPhysical();
+		}
+	}
 }

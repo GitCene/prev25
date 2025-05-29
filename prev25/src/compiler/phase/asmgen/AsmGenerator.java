@@ -21,7 +21,7 @@ public class AsmGenerator {
     public void munch() {
         for (LIN.CodeChunk codeChunk : this.codeChunks) {
             // For this function...
-            ASM.AsmChunk asmChunk = new ASM.AsmChunk(codeChunk.frame.label.name);
+            ASM.AsmChunk asmChunk = new ASM.AsmChunk(codeChunk.frame.label.name, codeChunk.frame, codeChunk.entryLabel, codeChunk.exitLabel);
             for (IMC.Stmt stmt : codeChunk.stmts()) {
                 topLevelMatch(stmt, asmChunk);
             }
@@ -181,30 +181,55 @@ public class AsmGenerator {
     }
 
     public void matchLoadOcta(IMC.MEM8 mem, IMC.TEMP dest, ASM.AsmChunk asmChunk) {
-        ASM.MEMO load = new ASM.MEMO(false, 8L, dest, (IMC.TEMP)mem.addr, new IMC.CONST(0L));
-        asmChunk.put(load);
+        matchMEM(dest, mem.addr, 8L, false, asmChunk);
     }
     
     public void matchLoadSingle(IMC.MEM1 mem, IMC.TEMP dest, ASM.AsmChunk asmChunk) {
-        ASM.MEMO load = new ASM.MEMO(false, 1L, dest, (IMC.TEMP)mem.addr, new IMC.CONST(0L));
-        asmChunk.put(load);
+        matchMEM(dest, mem.addr, 1L, false, asmChunk);
     }
-        
+    
     public void matchStoreOcta(IMC.TEMP src, IMC.MEM8 mem, ASM.AsmChunk asmChunk) {
-        ASM.MEMO store = new ASM.MEMO(true, 8L, src, (IMC.TEMP)mem.addr, new IMC.CONST(0L));
-        asmChunk.put(store);
+        matchMEM(src, mem.addr, 8L, true, asmChunk);
     }
     
     public void matchStoreSingle(IMC.TEMP src, IMC.MEM1 mem, ASM.AsmChunk asmChunk) {
-        ASM.MEMO store = new ASM.MEMO(true, 1L, src, (IMC.TEMP)mem.addr, new IMC.CONST(0L));
-        asmChunk.put(store);
+        matchMEM(src, mem.addr, 8L, true, asmChunk);
+    }
+
+    public void matchMEM(IMC.TEMP srcdest, IMC.Expr memaddr, Long size, boolean isStore, ASM.AsmChunk asmChunk) {
+        ASM.MEMO mem; 
+        if (memaddr instanceof IMC.TEMP temp)
+            mem = new ASM.MEMO(isStore, size, srcdest, temp, new IMC.CONST(0L));
+        else if (memaddr instanceof IMC.NAME name) {
+            IMC.TEMP addrDest = new IMC.TEMP();
+            ASM.LDA lda = new ASM.LDA(addrDest, name);
+            asmChunk.put(lda);
+            mem = new ASM.MEMO(isStore, size, srcdest, addrDest, new IMC.CONST(0L));
+        }
+        else throw new Report.Error("Weird types in matchMEM.");
+        asmChunk.put(mem);
     }
 
     public void matchCallAssign(IMC.CALL call, IMC.TEMP dest, ASM.AsmChunk asmChunk) {
         // FOR NOW: Call will become a PUSHJ.
+        IMC.NAME funName = (IMC.NAME)call.addr;
+        switch (funName.label.name) {
+            case "_puts":
+                IMC.Expr arg = call.args.get(1);
+                if (arg instanceof IMC.NAME name) {
+                    ASM.LDA lda = new ASM.LDA(new IMC.TEMP(), name);
+                    asmChunk.put(lda);
+                    ASM.TRAP trap = new ASM.TRAP("Fputs", "Stdout");
+                    asmChunk.put(trap);
+                } else throw new Report.Error("Yet undefined puts behaviour.");
+                return;
+
+            default:
+                ASM.PUSHJ pushj = new ASM.PUSHJ(new IMC.TEMP(), (IMC.NAME)call.addr);
+                asmChunk.put(pushj);
+        }
+
         // Pushj will need size of stack frame.
-        ASM.PUSHJ pushj = new ASM.PUSHJ(new IMC.TEMP(), (IMC.NAME)call.addr);
-        asmChunk.put(pushj);
         // Ensure that return register is treated properly during register allocation.
         // MMIX special registers.
     }

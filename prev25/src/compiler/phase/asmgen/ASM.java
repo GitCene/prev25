@@ -14,7 +14,7 @@ import compiler.phase.memory.MEM;
 public class ASM {
     private static Object nc(Object in) {
         if (in == null) {
-            return 0;
+            return 255;
         }
         else return in;
     }
@@ -404,6 +404,30 @@ public class ASM {
     }
 
     /**
+     * MMIX's Load Address.
+     */
+    public static class LDA extends Instr {
+        public IMC.TEMP dest;
+        public MEM.Label label;
+
+        public LDA(IMC.TEMP dest, IMC.NAME name) {
+            this.dest = dest;
+            this.label = name.label;
+            
+            this.def.add(dest);
+        }
+
+        public String toString() {
+            return this.labelText() + " LDA " + this.dest.temp + "," + this.label.name;
+        }
+
+        @Override
+        public String mapped(HashMap<MEM.Temp, Integer> mapping) {
+            return this.labelText() + " LDA $" + nc(mapping.get(this.dest.temp)) + "," + this.label.name;
+        }
+    }
+
+    /**
      * MMIX's way to call subroutines.
      * TODO.
      */
@@ -420,6 +444,20 @@ public class ASM {
             return this.labelText() + " PUSHJ " + framesize.temp.toString() + "," + callee.label.name;
         }
     }
+
+    public static class TRAP extends Instr {
+        public String Y;
+        public String Z;
+
+        public TRAP(String Y, String Z) {
+            this.Y = Y;
+            this.Z = Z;
+        }
+
+        public String toString() {
+            return this.labelText() + " TRAP 0," + Y + "," + Z;
+        }
+    }
     /*
      * An assembly chunk for a code chunk.
      */
@@ -427,6 +465,9 @@ public class ASM {
         public Vector<Instr> asm;
         public IMC.LABEL currLabel;
         public String name;
+        public MEM.Frame frame;
+        public MEM.Label entryLabel;
+        public MEM.Label exitLabel;
 
         // If needed:
         //public HashMap<ASM.Jump, IMC.NAME> jumpsDict;
@@ -437,9 +478,12 @@ public class ASM {
         public HashMap<MEM.Temp, Integer> coloring;
 
 
-        public AsmChunk(String name) {
+        public AsmChunk(String name, MEM.Frame frame, MEM.Label entryLabel, MEM.Label exitLabel) {
             this.asm = new Vector<Instr>();
+            this.frame = frame;
             this.name = name;
+            this.entryLabel = entryLabel;
+            this.exitLabel = exitLabel;
         }
 
         public void setLabel(IMC.LABEL lab) {
@@ -460,10 +504,17 @@ public class ASM {
                 System.out.println(instr);
         }
         
-        public void emitPhysical() {
-            System.out.println("##### ASM : " + this.name + " #####" );
+        public void emitPhysicalVerbose() {
+            System.out.println("% " + this.name);
             for (Instr instr : this.asm) {
                 System.out.printf("%-30s    ---->    ", instr.toString());                
+                System.out.println(instr.mapped(this.coloring));
+            }
+        }
+
+        public void emitPhysical() {
+            System.out.printf("%% name: %s, entry: %s, exit: %s, FP: %s, RV: %s\n", this.name, this.entryLabel.name, this.exitLabel.name, this.frame.FP, this.frame.RV);
+            for (Instr instr : this.asm) {                
                 System.out.println(instr.mapped(this.coloring));
             }
         }

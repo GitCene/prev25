@@ -12,7 +12,7 @@ import compiler.phase.imcgen.*;
  */
 public class Interpreter {
 
-    private boolean debug = false;
+    private boolean debug = true;
 
     /** if CJUMP cond is <strong>false</strong>, fall through */
     private final boolean ENFORCE_FALL_THROUGH = true;
@@ -114,7 +114,7 @@ public class Interpreter {
     private void loadDataChunks(Vector<LIN.DataChunk> dataChunks) {
         for (LIN.DataChunk dataChunk : dataChunks) {
             if (debug) {
-                System.out.printf("### (SET) %s @ %d\n", dataChunk.label.name, tempLD(HP, false));
+                System.out.printf("### (SET) %s @ %#x\n", dataChunk.label.name, tempLD(HP, false));
             }
             this.dataMemLabels.put(dataChunk.label, tempLD(HP, false));
             if (dataChunk.init != null) {
@@ -144,7 +144,7 @@ public class Interpreter {
 
     private void memST(Long address, Long value, final int size, boolean debug) {
         if (debug)
-            System.out.printf("### (ST) [%d] <- %d\n", address, value);
+            System.out.printf("### (ST) [%#x] <- %#x\n", address, value);
         for (int b = 0; b < size; b++) {
             long longval = value & 0xFF;
             byte byteval = (byte) longval;
@@ -170,7 +170,7 @@ public class Interpreter {
             value = (value << 8) + (longval < 0 ? longval + 0x100 : longval);
         }
         if (debug)
-            System.out.printf("### (LD) %d <- [%d]\n", value, address);
+            System.out.printf("### (LD) %#x <- [%#x]\n", value, address);
         return value;
     }
 
@@ -182,22 +182,22 @@ public class Interpreter {
         temps.put(temp, value);
         if (debug) {
             if (temp == SP) {
-                System.out.printf("### (ST) SP <- %d\n", value);
+                System.out.printf("### (ST) SP <- %#x\n", value);
                 return;
             }
             if (temp == FP) {
-                System.out.printf("### (ST) FP <- %d\n", value);
+                System.out.printf("### (ST) FP <- %#x\n", value);
                 return;
             }
             if (temp == RV) {
-                System.out.printf("### (ST) RV <- %d\n", value);
+                System.out.printf("### (ST) RV <- %#x\n", value);
                 return;
             }
             if (temp == HP) {
-                System.out.printf("### (ST) HP <- %d\n", value);
+                System.out.printf("### (ST) HP <- %#x\n", value);
                 return;
             }
-            System.out.printf("### (ST) T%d <- %d\n", temp.temp, value);
+            System.out.printf("### (ST) T%d <- %#x\n", temp.temp, value);
             return;
         }
     }
@@ -215,22 +215,22 @@ public class Interpreter {
         }
         if (debug) {
             if (temp == SP) {
-                System.out.printf("### (LD) %d <- SP\n", value);
+                System.out.printf("### (LD) %#x <- SP\n", value);
                 return value;
             }
             if (temp == FP) {
-                System.out.printf("### (LD) %d <- FP\n", value);
+                System.out.printf("### (LD) %#x <- FP\n", value);
                 return value;
             }
             if (temp == RV) {
-                System.out.printf("### (LD) %d <- RV\n", value);
+                System.out.printf("### (LD) %#x <- RV\n", value);
                 return value;
             }
             if (temp == HP) {
-                System.out.printf("### (LD) %d <- HP\n", value);
+                System.out.printf("### (LD) %#x <- HP\n", value);
                 return value;
             }
-            System.out.printf("### (LD) %d <- T%d\n", value, temp.temp);
+            System.out.printf("### (LD) %#x <- T%d\n", value, temp.temp);
             return value;
         }
         return value;
@@ -546,7 +546,7 @@ public class Interpreter {
             while ((label != chunk.exitLabel) && (lastLabel != chunk.exitLabel)) {
                 if (debug) {
                     pc++;
-                    System.out.printf("### %s (%d):\n", chunk.frame.label.name, pc);
+                    System.out.printf("### %s (%#x):\n", chunk.frame.label.name, pc);
                     if (pc == 1000000)
                         break;
                 }
