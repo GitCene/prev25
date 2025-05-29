@@ -3,14 +3,16 @@ package compiler.phase.asmgen;
 import java.util.HashMap;
 import java.util.Vector;
 
+import org.stringtemplate.v4.ST;
+
 import compiler.common.report.Report;
+import compiler.phase.abstr.AST.BinExpr.Oper;
 import compiler.phase.imcgen.IMC;
 import compiler.phase.memory.MEM;
 
 /**
  * Assembly instructions for MMIX.
  */
-// TODO: change the IMC.TEMPS to MEM.Temps.
 public class ASM {
     private static Object nc(Object in) {
         if (in == null) {
@@ -18,24 +20,79 @@ public class ASM {
         }
         else return in;
     }
+
     /**
-     * Corresponds to a line of assembly.
+     * An operand passed to an assembly instruction.
+     */
+    public static abstract class Operand {
+        
+    }
+
+    /**
+     * The operand is a register.
+     */
+    public static class Register extends Operand {
+        public final MEM.Temp virtual;
+        private int physical;
+        private boolean colored = false;
+        
+        public Register(IMC.TEMP temp) {
+            this.virtual = temp.temp;
+        }
+
+        public Register(MEM.Temp temp) {
+            this.virtual = temp;
+        }
+
+        public void color(int color) {
+            this.physical = color;
+            this.colored = true;
+        }
+
+        @Override
+        public String toString() {
+            if (this.colored)
+                return String.format("$%d", this.physical);
+            else
+                return this.virtual.toString();
+        }
+    }
+
+    /**
+     * The operand is an immediate value.
+     */
+    public static class Immediate extends Operand {
+        //TODO: Think about what kind of values will be here.
+        private final String value;
+
+        public Immediate(Long value) {
+            this.value = Long.toString(value);
+        }
+
+        @Override
+        public String toString() {
+            return this.value;
+        }
+    }
+    /**
+     * An assembly instruction.
      */
     public static abstract class Instr {
-        public IMC.LABEL label;
         public static HashMap<MEM.Label, ASM.Instr> labelMap = new HashMap<MEM.Label, ASM.Instr>();
-        public Vector<IMC.TEMP> use = new Vector<IMC.TEMP>();
-        public Vector<IMC.TEMP> def = new Vector<IMC.TEMP>();
+        
+        public MEM.Label label;
+        public Vector<Register> use = new Vector<Register>();
+        public Vector<Register> def = new Vector<Register>();
         //public Vector<ASM.Instr> pred = new Vector<ASM.Instr>();
         public Vector<ASM.Instr> succ = new Vector<ASM.Instr>();
 
-        public void setLabel(IMC.LABEL lab) {
+        public void setLabel(MEM.Label lab) {
             this.label = lab;
-            Instr.labelMap.put(lab.label, this);
+            Instr.labelMap.put(lab, this);
         }
 
         public String labelText() {
-            return (this.label == null ? "    " : this.label.label.name);
+            return this.label == null ? "" : this.label.name;
         }
 
         public void addSucc(ASM.Instr instr) {
@@ -43,42 +100,86 @@ public class ASM {
         }
         
         // Return string representation of instruction according to a physical register mapping.
-        public String mapped(HashMap<MEM.Temp, Integer> mapping) {
-            return this.toString();
-        }
+        // public String mapped(HashMap<MEM.Temp, Integer> mapping) {
+        //    return this.toString();
+        //}
 
     }
 
     /**
-     * Copy a G.P. register's value to another G.P. register.
+     * An instruction which takes three operands.
+     * The last one can be immediate or not.
+     * It is assumed that the instruction writes to reg1,
+     * and reads from reg2 (and possibly reg3).
+     * OP $1,$2,$3 or OP $1,$2,3
      */
-    public static class SET extends Instr {
-        public IMC.TEMP reg1;
-        public IMC.TEMP reg2;
-        public IMC.CONST imm2;
-        public boolean isImmediate;
-        
-        public SET(IMC.TEMP reg1, IMC.Expr arg2) {
-            this.reg1 = reg1;
-            this.def.add(reg1);
-            if (arg2 instanceof IMC.CONST c) {
-                this.imm2 = c;
-                this.isImmediate = true;
-            } else {
-                this.reg2 = (IMC.TEMP) arg2;
-                this.isImmediate = false;
-                this.use.add(reg2);
+    public abstract static class TriOp extends Instr {
+        public Register X;
+        public Register Y;
+        public Operand Z;
+
+        public TriOp(IMC.TEMP a1, IMC.TEMP a2, IMC.Expr a3) {
+            this.X = new Register(a1);
+            this.def.add(this.X);
+            this.Y = new Register(a2);
+            this.def.add(this.Y);
+            if (a3 instanceof IMC.CONST c) {
+                this.Z = new Immediate(c.value);
+            } else if (a3 instanceof IMC.TEMP t) {
+                Register rz = new Register(t);
+                this.Z = rz;
+                this.use.add(rz);
+            } else throw new Report.InternalError();
+        }
+
+        public abstract String mnem();
+
+        public String toString() {
+            return String.format("%-8s %-8s %s,%s,%s", this.labelText(), this.mnem(), this.X, this.Y, this.Z);
+        }
+    }
+
+    /**
+     * An instruction which takes two operands.
+     */
+    public abstract static class BiOp extends Instr {
+        public Operand X;
+        public Operand Z;
+
+        public BiOp(IMC.Expr a1, IMC.Expr a2) {
+            if (a1 instanceof IMC.CONST c1) {
+                this.X = new Immediate(c1.value);
+            } else if (a1 instanceof IMC.TEMP t1) {
+                Register rx = new Register(t1);
+                this.X = rx;
+                this.def.add(rx);
+            }
+            if (a2 instanceof IMC.CONST c2) {
+                this.Z = new Immediate(c2.value);
+            } else if (a2 instanceof IMC.TEMP t2) {
+                Register rz = new Register(t2);
+                this.Z = rz;
+                this.use.add(rz);
             }
         }
 
-        @Override
+        public abstract String mnem();
+
         public String toString() {
-            return this.labelText() + " SET " + this.reg1.temp + "," + (this.isImmediate ? this.imm2.value : this.reg2.temp);
+            return String.format("%-8s %-8s %s,%s", this.labelText(), this.mnem(), this.X, this.Z);
+        }
+    }
+    /**
+     * Copy a G.P. register's value to another G.P. register.
+     */
+    public static class SET extends BiOp {
+        public SET(IMC.TEMP a1, IMC.Expr a2) {
+            super(a1, a2);
         }
 
         @Override
-        public String mapped(HashMap<MEM.Temp, Integer> mapping) {
-            return this.labelText() + " SET $" + nc(mapping.get(this.reg1.temp)) + "," + (this.isImmediate ? this.imm2.value : "$" + nc(mapping.get(this.reg2.temp)));
+        public String mnem() {
+            return "SET";
         }
     }
 
@@ -98,15 +199,15 @@ public class ASM {
      * JMP XYZ : jump to label XYZ.
      */
     public static class JMP extends Jump {
-        public IMC.NAME dest;
+        public MEM.Label dest;
 
         public JMP(IMC.NAME name) {
-            this.dest = name;
+            this.dest = name.label;
             this.jumpsTo.add(name.label);
         }
 
         public String toString() {
-            return this.labelText() + " JMP " + this.dest.label.name;
+            return String.format("%-8s %-8s %s", this.labelText(), "JMP", this.dest.name);
         }
     }
      
@@ -126,94 +227,54 @@ public class ASM {
         public enum Oper {
             BZ, BNZ, BN, BNN, BP, BNP, BOD, BEV
         }
-        public IMC.TEMP cond;
-        public IMC.NAME dest;
+        public Register cond;
+        public MEM.Label dest;
         public Oper op;
         public boolean probable = false;
 
         public BRANCH(Oper op, IMC.TEMP cond, IMC.NAME pos, IMC.NAME neg) {
             this.op = op;
-            this.cond = cond;
-            this.dest = pos;
+            this.cond = new Register(cond);
+            this.dest = pos.label;
             this.jumpsTo.add(pos.label);
             this.jumpsTo.add(neg.label);
-            this.use.add(cond);
+            this.use.add(this.cond);
         }
 
         public String mnem() {
             String p = this.probable ? "P" : "";
-            switch(this.op){
+            return p + this.op;
+            /*
+             * 
+             switch(this.op){
                 case BZ:
                     return p + "BZ";
-                case BNZ:
+                    case BNZ:
                     return p + "BNZ";
-                case BN:
+                    case BN:
                     return p + "BN";
-                case BNN:
+                    case BNN:
                     return p + "BNN";
-                case BP:
+                    case BP:
                     return p + "BP";
-                case BNP:
+                    case BNP:
                     return p + "BNP";
-                case BOD:
+                    case BOD:
                     return p + "BOD";
-                case BEV:
+                    case BEV:
                     return p + "BEV";
-                default:
+                    default:
                     throw new Report.InternalError();
-            }
+                }
+                */
         }
 
         public String toString() {
-            return this.labelText() + " " + this.mnem() + " " + this.cond.temp + "," + this.dest.label.name;
-        }
-
-        @Override
-        public String mapped(HashMap<MEM.Temp, Integer> mapping) {
-            return this.labelText() + " " + this.mnem() + " $" + nc(mapping.get(this.cond.temp)) + "," + this.dest.label.name;
+            return String.format("%-8s %-8s %s,%s", this.labelText(), this.mnem(), this.cond, this.dest.name);
         }
     }
 
-    /**
-     * An instruction which takes three operands.
-     * The last one can be immediate or not.
-     * It is assumed that the instruction writes to reg1,
-     * and reads from reg2 (and possibly reg3).
-     * OP $1,$2,$3 or OP $1,$2,3
-     */
-    public abstract static class TriOp extends Instr {
-        public IMC.TEMP reg1;
-        public IMC.TEMP reg2;
-        public IMC.TEMP reg3;
-        public IMC.CONST imm3;
-        public boolean isImmediate;
-
-        public TriOp(IMC.TEMP reg1, IMC.TEMP reg2, IMC.Expr arg3) {
-            this.reg1 = reg1;
-            this.def.add(reg1);
-            this.reg2 = reg2;
-            this.use.add(reg2);
-            if (arg3 instanceof IMC.CONST c) {
-                this.imm3 = c;
-                isImmediate = true;
-            } else {
-                this.reg3 = (IMC.TEMP) arg3;
-                isImmediate = false;
-                this.use.add(reg3);
-            }
-        }
-
-        public abstract String mnem();
-
-        public String toString() {
-            return this.labelText() + " " + this.mnem() + " " + this.reg1.temp +  "," + this.reg2.temp + "," + (isImmediate ? this.imm3.value : this.reg3.temp);
-        }
-
-        @Override
-        public String mapped(HashMap<MEM.Temp, Integer> mapping) {
-            return this.labelText() + " " + this.mnem() + " $" + nc(mapping.get(this.reg1.temp)) +  ",$" + nc(mapping.get(this.reg2.temp)) + "," + (isImmediate ? this.imm3.value : "$" + nc(mapping.get(this.reg3.temp)));
-        }
-    }
+    
 
     /**
      * Correspond to IMC binary operations.
@@ -253,22 +314,26 @@ public class ASM {
 
         @Override
         public String mnem() {
-            switch(this.op) {
+            return this.op.toString();
+            /*
+             * 
+             switch(this.op) {
                 case ADD:
-                    return "ADD";
+                return "ADD";
                 case SUB:
-                    return "SUB";
+                return "SUB";
                 case MUL:
-                    return "MUL";
+                return "MUL";
                 case DIV:
-                    return "DIV";
+                return "DIV";
                 case AND:
-                    return "AND";
+                return "AND";
                 case OR:
-                    return "OR";
+                return "OR";
                 default:
-                    throw new Report.InternalError();
+                throw new Report.InternalError();
             }
+            */
         }
 
     }
@@ -333,22 +398,26 @@ public class ASM {
         @Override
         public String mnem() {
             String c = this.zeroSet ? "Z" : "C";
-            switch(this.op) {
+            return c + this.op;
+            /*
+             * 
+             switch(this.op) {
                 case SZ:
                     return c + "SZ";
-                case SNZ:
+                    case SNZ:
                     return c + "SNZ";
-                case SN:
+                    case SN:
                     return c + "SN";
                 case SNN:
-                    return c + "SNN";
+                return c + "SNN";
                 case SP:
                     return c + "SP";
-                case SNP:
+                    case SNP:
                     return c + "SNP";
-                default:
+                    default:
                     throw new Report.InternalError();
-            }
+                }
+                */
         }
     }
 
@@ -360,27 +429,24 @@ public class ASM {
         public boolean isStore;
         public Long size;
 
-        public IMC.TEMP reg1;
-        public IMC.TEMP reg2;
-        public IMC.TEMP reg3;
-        public IMC.CONST imm3;
-        public boolean isImmediate;
+        public Register X;
+        public Register Y;
+        public Operand Z;
 
         public MEMO(boolean isStore, Long size, IMC.TEMP arg1, IMC.TEMP arg2, IMC.Expr arg3) {
-            this.reg1 = arg1;
-            this.reg2 = arg2;
+            this.X = new Register(arg1);
+            this.Y = new Register(arg2);
             if (!isStore)
-                this.def.add(reg1);
+                this.def.add(this.X);
             else
-                this.use.add(reg1);
-            this.use.add(reg2);
+                this.use.add(this.X);
+            this.use.add(this.Y);
             if (arg3 instanceof IMC.CONST c) {
-                this.imm3 = c;
-                isImmediate = true;
-            } else {
-                this.reg3 = (IMC.TEMP) reg3;
-                isImmediate = false;
-                this.use.add(reg3);
+                this.Z = new Immediate(c.value);
+            } else if (arg3 instanceof IMC.TEMP t) {
+                Register rz = new Register(t);
+                this.use.add(rz);
+                this.Z = rz;
             }
             this.isStore = isStore;
             assert size == 8L || size == 1L;
@@ -394,12 +460,7 @@ public class ASM {
         }
 
         public String toString() {
-            return this.labelText() + " " + this.mnem() + " " + this.reg1.temp +  "," + this.reg2.temp + "," + (isImmediate ? this.imm3.value : this.reg3.temp);
-        }
-        
-        @Override
-        public String mapped(HashMap<MEM.Temp, Integer> mapping) {
-            return this.labelText() + " " + this.mnem() + " $" + nc(mapping.get(this.reg1.temp)) +  ",$" + nc(mapping.get(this.reg2.temp)) + "," + (isImmediate ? this.imm3.value : "$" + nc(mapping.get(this.reg3.temp)));
+            return String.format("%-8s %-8s %s,%s,%s", this.labelText(), this.mnem(), this.X, this.Y, this.Z);
         }
     }
 
@@ -407,23 +468,18 @@ public class ASM {
      * MMIX's Load Address.
      */
     public static class LDA extends Instr {
-        public IMC.TEMP dest;
+        public Register dest;
         public MEM.Label label;
 
         public LDA(IMC.TEMP dest, IMC.NAME name) {
-            this.dest = dest;
+            this.dest = new Register(dest);
             this.label = name.label;
             
-            this.def.add(dest);
+            this.def.add(this.dest);
         }
 
         public String toString() {
-            return this.labelText() + " LDA " + this.dest.temp + "," + this.label.name;
-        }
-
-        @Override
-        public String mapped(HashMap<MEM.Temp, Integer> mapping) {
-            return this.labelText() + " LDA $" + nc(mapping.get(this.dest.temp)) + "," + this.label.name;
+            return String.format("%-8s %-8s %s,%s", this.labelText(), "LDA", this.dest, this.label.name);
         }
     }
 
@@ -432,19 +488,22 @@ public class ASM {
      * TODO.
      */
     public static class PUSHJ extends Instr {
-        IMC.TEMP framesize;
-        IMC.NAME callee;
+        Register framesize;
+        MEM.Label callee;
         
         public PUSHJ(IMC.TEMP framesize, IMC.NAME callee) {
-            this.framesize = framesize;
-            this.callee = callee;
+            this.framesize = new Register(framesize);
+            this.callee = callee.label;
         }
 
         public String toString() {
-            return this.labelText() + " PUSHJ " + framesize.temp.toString() + "," + callee.label.name;
+            return String.format("%-8s %-8s %s,%s", this.labelText(), "PUSHJ", this.framesize, this.callee.name);
         }
     }
 
+    /**
+     * MMIX's system call.
+     */
     public static class TRAP extends Instr {
         public String Y;
         public String Z;
@@ -455,7 +514,7 @@ public class ASM {
         }
 
         public String toString() {
-            return this.labelText() + " TRAP 0," + Y + "," + Z;
+            return String.format("%-8s %-8s %s,%s", this.labelText(), "TRAP", this.Y, this.Z);
         }
     }
     /*
@@ -492,7 +551,7 @@ public class ASM {
 
         public void put(Instr instr) {
             if (this.currLabel != null) {
-                instr.setLabel(this.currLabel);
+                instr.setLabel(this.currLabel.label);
                 this.currLabel = null;
             }
             this.asm.add(instr);
@@ -508,14 +567,16 @@ public class ASM {
             System.out.println("% " + this.name);
             for (Instr instr : this.asm) {
                 System.out.printf("%-30s    ---->    ", instr.toString());                
-                System.out.println(instr.mapped(this.coloring));
+                //System.out.println(instr.mapped(this.coloring));
+                System.out.println(instr);
             }
         }
 
         public void emitPhysical() {
             System.out.printf("%% name: %s, entry: %s, exit: %s, FP: %s, RV: %s\n", this.name, this.entryLabel.name, this.exitLabel.name, this.frame.FP, this.frame.RV);
             for (Instr instr : this.asm) {                
-                System.out.println(instr.mapped(this.coloring));
+                //System.out.println(instr.mapped(this.coloring));
+                System.out.println(instr);
             }
         }
     }

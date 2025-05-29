@@ -38,11 +38,11 @@ public class LivenessAnalyzer {
         HashSet<MEM.Temp> inSet = new HashSet<MEM.Temp>();
         if (this.out.containsKey(instr))
             inSet.addAll(this.out.get(instr));
-        for (IMC.TEMP deffd : instr.def)
-            inSet.remove(deffd.temp);
+        for (ASM.Register deffd : instr.def)
+            inSet.remove(deffd.virtual);
         //inSet.addAll(instr.use);
-        for (IMC.TEMP ddd : instr.use) {
-            inSet.add(ddd.temp);
+        for (ASM.Register ddd : instr.use) {
+            inSet.add(ddd.virtual);
         }
         this.in.put(instr, inSet);
         return inSet;

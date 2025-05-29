@@ -234,7 +234,7 @@ public class Compiler {
 					Abstr.tree.accept(new ChunkGenerator(), null);
 					imclin.log();
 
-					if (true) {
+					if (false) {
 						Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
 						System.out.println("EXIT CODE: " + interpreter.run("_main"));
 					}
@@ -246,9 +246,9 @@ public class Compiler {
 				try (AsmGen asmgen = new AsmGen()) {
 					AsmGenerator asmGenerator = new AsmGenerator(ImcLin.dataChunks(), ImcLin.codeChunks());
 					asmGenerator.munch();
-					//asmGenerator.emitAll();
+					asmGenerator.emitAll();
 				}
-				if (cmdLineOptValues.get("--target-phase").equals("asmgen"))
+				if (cmdLineOptValues.get("--target-phase").equals("asmgen") || true)
 					break;
 				
 				// Liveness analysis.

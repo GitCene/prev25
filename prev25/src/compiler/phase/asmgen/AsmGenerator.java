@@ -1,14 +1,17 @@
 package compiler.phase.asmgen;
+import java.util.HashMap;
 import java.util.Vector;
 
 import compiler.common.report.Report;
 import compiler.phase.imcgen.IMC;
 import compiler.phase.imclin.LIN;
+import compiler.phase.memory.MEM;
 
 public class AsmGenerator {
 
     public Vector<LIN.DataChunk> dataChunks;
     public Vector<LIN.CodeChunk> codeChunks;
+    public HashMap<MEM.Temp, Integer> constraints = new HashMap<MEM.Temp, Integer>();
 
     public IMC.LABEL currLabel = null;
 
@@ -119,6 +122,7 @@ public class AsmGenerator {
                 IMC.TEMP tempDest = new IMC.TEMP();
                 ASM.BINOP div = new ASM.BINOP(IMC.BINOP.Oper.DIV, tempDest, (IMC.TEMP)arg1, arg2);
                 // TODO: Ensure that $dest is the special modulo look register!
+                constraints.put(dest.temp, 1006);
                 asmChunk.put(div);
                 return;
             // TODO: optimize the if statements with this.
@@ -219,9 +223,13 @@ public class AsmGenerator {
                 if (arg instanceof IMC.NAME name) {
                     ASM.LDA lda = new ASM.LDA(new IMC.TEMP(), name);
                     asmChunk.put(lda);
-                    ASM.TRAP trap = new ASM.TRAP("Fputs", "Stdout");
-                    asmChunk.put(trap);
+                } else if (arg instanceof IMC.TEMP t) {
+                    // There is a pointer to a string, loaded to a register.
+                    // TODO: enforce that that register becomes $255.
+                    constraints.put(t.temp, 255);
                 } else throw new Report.Error("Yet undefined puts behaviour.");
+                ASM.TRAP trap = new ASM.TRAP("Fputs", "Stdout");
+                asmChunk.put(trap);
                 return;
 
             default:
