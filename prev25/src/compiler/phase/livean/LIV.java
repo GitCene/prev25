@@ -52,25 +52,26 @@ public class LIV {
     
     public static class AsmGraph {
         public HashMap<MEM.Temp, HashSet<MEM.Temp>> graph;
-        public int n;
+
+        public HashSet<MEM.Temp> get(MEM.Temp key) {
+            return this.graph.get(key);
+        }
 
         public AsmGraph() {
             this.graph = new HashMap<MEM.Temp, HashSet<MEM.Temp>>();
-            this.n = 0;
         }
 
         public void addVertex(MEM.Temp temp) {
             if (!this.graph.containsKey(temp)) {
                 this.graph.put(temp, new HashSet<MEM.Temp>());
-                this.n++;
             }
         }
 
         public void addEdge(MEM.Temp t1, MEM.Temp t2) {
             addVertex(t1);
             addVertex(t2);
-            this.graph.get(t1).add(t2);
-            this.graph.get(t2).add(t1);
+            this.get(t1).add(t2);
+            this.get(t2).add(t1);
         }
 
         public void addAllEdges(MEM.Temp temp, Set<MEM.Temp> lives) {
@@ -81,7 +82,7 @@ public class LIV {
 
         public void display() {
             for (MEM.Temp vertex : this.graph.keySet()) {
-                HashSet<MEM.Temp> neighbors = this.graph.get(vertex);
+                HashSet<MEM.Temp> neighbors = this.get(vertex);
                 System.out.printf("Variable %s has neighbors: ", vertex);
                 for (MEM.Temp neighbor : neighbors) {
                     System.out.printf("%s ", neighbor);
@@ -89,6 +90,7 @@ public class LIV {
                 System.out.println();
             }
         }
+
     }
 
 }

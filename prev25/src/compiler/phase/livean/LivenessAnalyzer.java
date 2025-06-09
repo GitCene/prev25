@@ -129,8 +129,8 @@ public class LivenessAnalyzer {
                     chunkGraph.addAllEdges(temp, outSet);
                 }
             }
-            //System.out.println("Displaying graph for chunk: " + chunk.name);
-            //chunkGraph.display();
+            System.out.println("Displaying graph for chunk: " + chunk.name);
+            chunkGraph.display();
             LiveAn.graphMap.put(chunk, chunkGraph);
         }
     }

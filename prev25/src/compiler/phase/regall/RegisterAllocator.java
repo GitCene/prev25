@@ -71,7 +71,8 @@ public class RegisterAllocator {
             
             // Reconstruct from stacks
             LIV.AsmGraph newGraph = new LIV.AsmGraph();
-            HashMap<MEM.Temp, Integer> coloring = new HashMap<MEM.Temp, Integer>();
+            HashMap<MEM.Temp, Integer> coloring = new HashMap<MEM.Temp, Integer>(AsmGen.constraints);
+            int maxcolor = 0;
             while (vertexStack.size() > 0) {
                 MEM.Temp freshVertex = vertexStack.pop();
                 //System.out.println("Got fresh vertex " + freshVertex);
@@ -89,7 +90,9 @@ public class RegisterAllocator {
                     }
                 }
                 */
-                // Try to find a color
+                // If already in coloring from constraints, skip it...
+                if (coloring.containsKey(freshVertex)) continue;
+                // else Try to find a color
                 boolean colored = false;
                 // Reserve r0 for null
                 for (int i = 1; i < this.numRegs; i++) {
@@ -107,6 +110,7 @@ public class RegisterAllocator {
                         coloring.put(freshVertex, i);
                         //System.out.println("Colored it with color " + i);
                         colored = true;
+                        maxcolor = Integer.max(i, maxcolor);
                         break;
                     }
                 }
@@ -125,9 +129,33 @@ public class RegisterAllocator {
                 }
                 */
             }
-            //System.out.println("##### Displaying coloring for chunk " + chunk.name + " #####");
-            //displayColoring(coloring);
+            System.out.println("##### Displaying coloring for chunk " + chunk.name + " #####");
+            displayColoring(coloring);
             chunk.coloring = coloring;
+
+            // If we are here, this chunk has been successfully colored. Let's burn in the colors.
+            // A naive ad hoc solution to determining where to put PUSHJ dest registers:
+            // PUSHJ will always work OK if you give it $M+1, where M is the largest register number used in this chunk.
+            // Because immediately the result of PUSHJ is used only to SET a register.
+            // Instead of coloring with n registers we color with n+1 registers, that's fine.
+            boolean setAfterPushj = false;
+            Vector<ASM.Instr> deleteRedundantInstrs = new Vector<ASM.Instr>();
+            for (ASM.Instr instr : chunk.asm) {
+                if (instr instanceof ASM.SET set && setAfterPushj) {
+                    if (set.X instanceof ASM.Register reg) {
+                        if (reg.physical == null)
+                            deleteRedundantInstrs.add(instr);
+                    }
+                }
+                if (instr instanceof ASM.PUSHJ pushj) {
+                    coloring.put(pushj.callreg.virtual, maxcolor+1);
+                    setAfterPushj = true;
+                } else setAfterPushj = false;
+                instr.color(coloring);
+            }
+            
+            // Here, we could trim some of the SET's that happen after calls.
+            chunk.asm.removeAll(deleteRedundantInstrs);
         }
         return true;
     }

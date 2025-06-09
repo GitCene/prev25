@@ -13,6 +13,7 @@ import compiler.phase.abstr.*;
 import compiler.phase.asmgen.ASM;
 import compiler.phase.asmgen.AsmGen;
 import compiler.phase.asmgen.AsmGenerator;
+import compiler.phase.finalize.*;
 import compiler.phase.asmgen.ASM.AsmChunk;
 import compiler.phase.seman.*;
 import compiler.phase.memory.*;
@@ -20,7 +21,6 @@ import compiler.phase.regall.RegAll;
 import compiler.phase.regall.RegisterAllocator;
 import compiler.phase.imcgen.*;
 import compiler.phase.imclin.*;
-import compiler.phase.imclin.LIN.DataChunk;
 
 /**
  * The Prev25 compiler.
@@ -151,7 +151,7 @@ public class Compiler {
 			if (cmdLineOptValues.get("--dst-file-name") == null) {
 				cmdLineOptValues.put("--dst-file-name",
 						// TODO: Insert the appropriate file suffix.
-						cmdLineOptValues.get("--src-file-name").replaceFirst("\\.[^./]*$", ".TODO"));
+						cmdLineOptValues.get("--src-file-name").replaceFirst("\\.[^./]*$", ".mm"));
 			}
 			if (cmdLineOptValues.get("--target-phase") == null)
 				cmdLineOptValues.put("--target-phase", "all");
@@ -246,30 +246,35 @@ public class Compiler {
 				try (AsmGen asmgen = new AsmGen()) {
 					AsmGenerator asmGenerator = new AsmGenerator(ImcLin.dataChunks(), ImcLin.codeChunks());
 					asmGenerator.munch();
-					asmGenerator.emitAll();
+					//asmGenerator.emitAll();
 				}
-				if (cmdLineOptValues.get("--target-phase").equals("asmgen") || true)
+				if (cmdLineOptValues.get("--target-phase").equals("asmgen") || false)
 					break;
 				
 				// Liveness analysis.
 				try (LiveAn livean = new LiveAn()) {
 					LivenessAnalyzer livenessAnalyzer = new LivenessAnalyzer(AsmGen.asm);
 					livenessAnalyzer.analyze();
-					//livenessAnalyzer.emitAll();
+					livenessAnalyzer.emitAll();
 				}
 				if (cmdLineOptValues.get("--target-phase").equals("livean"))
 					break;
 
 				// Register allocation.
 				try (RegAll regall = new RegAll()) {
+					System.out.println("Working with constraints:");
+					for (MEM.Temp treg : AsmGen.constraints.keySet()) {
+						System.out.printf("%s -> $%d\n", treg, AsmGen.constraints.get(treg));
+					}
+
 					String regsCmdline = cmdLineOptValues.get("--num-regs");
-					int regs = 42;
+					int regs = 32;
 					if (regsCmdline == null) {
-						Report.warning("Did not pass number of registers using '--num-regs' flag; defaulting to 42");
+						Report.warning("Did not pass number of registers using '--num-regs' flag; defaulting to 32");
 					} else try {
 						regs = Integer.parseInt(regsCmdline);
 					} catch (NumberFormatException e) {
-						Report.warning("Could not parse number of registers passed using '--num-regs' flag; defaulting to 42");
+						Report.warning("Could not parse number of registers passed using '--num-regs' flag; defaulting to 32");
 					}
 					RegisterAllocator registerAllocator = new RegisterAllocator(AsmGen.asm, LiveAn.graphMap, regs);
 					boolean success = registerAllocator.allocate();
@@ -280,7 +285,20 @@ public class Compiler {
 					break;
 
 				// Finalization.
-				finalize(AsmGen.asm, ImcLin.dataChunks());
+				try (Finalize finalize = new Finalize()) {
+					CodeFinalizer codeFinalizer = new CodeFinalizer(AsmGen.asm, ImcLin.dataChunks());
+					codeFinalizer.finalizeCode();
+				}
+
+				// Output.
+				String filename = String.format("../mmix/%s", cmdLineOptValues.get("--dst-file-name"));
+				try (FileWriter writer = new FileWriter(filename)) {
+					for (String line : Finalize.codeText) {
+						writer.write(line + "\n");
+					}
+				} catch (IOException e) {
+					throw new Report.Error("Error writing assembly to file.");
+				}
 
 				// Do not loop... ever.
 				break;
@@ -297,15 +315,4 @@ public class Compiler {
 		}
 	}
 
-	// Do what is needed and emit proper assembly.
-	public static void finalize(Vector<ASM.AsmChunk> asm, Vector<LIN.DataChunk> dataChunks) {
-		System.out.println("%%%%% MMIX assembly output");
-		System.out.println("LOC #100");
-		for (DataChunk dataChunk : dataChunks) {
-			System.out.printf("%s BYTE \"%s\",0\n", dataChunk.label.name, dataChunk.init);
-		}
-		for (AsmChunk asmChunk : asm) {
-			asmChunk.emitPhysical();
-		}
-	}
 }

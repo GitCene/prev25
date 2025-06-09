@@ -1,8 +1,10 @@
 package compiler.phase.asmgen;
+import java.io.FilePermission;
 import java.util.HashMap;
 import java.util.Vector;
 
 import compiler.common.report.Report;
+import compiler.phase.asmgen.ASM.BINOP.Oper;
 import compiler.phase.imcgen.IMC;
 import compiler.phase.imclin.LIN;
 import compiler.phase.memory.MEM;
@@ -11,7 +13,9 @@ public class AsmGenerator {
 
     public Vector<LIN.DataChunk> dataChunks;
     public Vector<LIN.CodeChunk> codeChunks;
-    public HashMap<MEM.Temp, Integer> constraints = new HashMap<MEM.Temp, Integer>();
+    //public HashMap<MEM.Temp, Integer> constraints = new HashMap<MEM.Temp, Integer>();
+    public IMC.TEMP FP = new IMC.TEMP();
+    public IMC.TEMP SP = new IMC.TEMP();
 
     public IMC.LABEL currLabel = null;
 
@@ -19,6 +23,12 @@ public class AsmGenerator {
         this.dataChunks = dataChunks;
         this.codeChunks = codeChunks;
         //this.asm = new Vector<ASM.AsmChunk>();
+        constrain(this.FP.temp, 253);
+        constrain(this.SP.temp, 254);
+    }
+
+    public void constrain(MEM.Temp treg, int preg) {
+        AsmGen.constraints.put(treg, preg);
     }
     
     public void munch() {
@@ -26,6 +36,10 @@ public class AsmGenerator {
             // For this function...
             ASM.AsmChunk asmChunk = new ASM.AsmChunk(codeChunk.frame.label.name, codeChunk.frame, codeChunk.entryLabel, codeChunk.exitLabel);
             for (IMC.Stmt stmt : codeChunk.stmts()) {
+                // Every RV should be constrained to $0
+                constrain(codeChunk.frame.RV, 0);
+                // Constrain FP to frame pointer code
+                constrain(codeChunk.frame.FP, 253);
                 topLevelMatch(stmt, asmChunk);
             }
             AsmGen.asm.add(asmChunk);
@@ -122,8 +136,10 @@ public class AsmGenerator {
                 IMC.TEMP tempDest = new IMC.TEMP();
                 ASM.BINOP div = new ASM.BINOP(IMC.BINOP.Oper.DIV, tempDest, (IMC.TEMP)arg1, arg2);
                 // TODO: Ensure that $dest is the special modulo look register!
-                constraints.put(dest.temp, 1006);
+                //constraints.put(dest.temp, 1006);
+                ASM.GET get = new ASM.GET(dest, new IMC.CONST(6));
                 asmChunk.put(div);
+                asmChunk.put(get);
                 return;
             // TODO: optimize the if statements with this.
             // This is very bad code that generates very bad code.
@@ -214,27 +230,93 @@ public class AsmGenerator {
         asmChunk.put(mem);
     }
 
+    /*
+     *         
+     * 
+     *  addNative("malloc", Interpreter::native_malloc);
+        addNative("new", Interpreter::native_malloc);
+        addNative("free", Interpreter::native_free);
+        addNative("del", Interpreter::native_free);
+        addNative("die", Interpreter::native_die);
+        addNative("exit", Interpreter::native_exit);
+        addNative("putint", Interpreter::native_putint);
+        addNative("putint_hex", Interpreter::native_putint_hex);
+        addNative("putint_bin", Interpreter::native_putint_bin);
+        addNative("putuint", Interpreter::native_putuint);
+        addNative("putchar", Interpreter::native_putchar);
+        addNative("puts", Interpreter::native_puts);
+        addNative("getint", Interpreter::native_getint);
+        addNative("getchar", Interpreter::native_getchar);
+        addNative("gets", Interpreter::native_gets);
+     */
+
     public void matchCallAssign(IMC.CALL call, IMC.TEMP dest, ASM.AsmChunk asmChunk) {
         // FOR NOW: Call will become a PUSHJ.
         IMC.NAME funName = (IMC.NAME)call.addr;
         switch (funName.label.name) {
             case "_puts":
+
                 IMC.Expr arg = call.args.get(1);
                 if (arg instanceof IMC.NAME name) {
-                    ASM.LDA lda = new ASM.LDA(new IMC.TEMP(), name);
+                    IMC.TEMP sysreg = new IMC.TEMP();
+                    ASM.LDA lda = new ASM.LDA(sysreg, name);
+                    constrain(sysreg.temp, 255);
                     asmChunk.put(lda);
                 } else if (arg instanceof IMC.TEMP t) {
                     // There is a pointer to a string, loaded to a register.
                     // TODO: enforce that that register becomes $255.
-                    constraints.put(t.temp, 255);
+                    constrain(t.temp, 255);
                 } else throw new Report.Error("Yet undefined puts behaviour.");
-                ASM.TRAP trap = new ASM.TRAP("Fputs", "Stdout");
+                ASM.TRAP trap = new ASM.TRAP("Fputs", "StdOut");
                 asmChunk.put(trap);
                 return;
+        
+            case "_putint":
+                return;
+                
 
             default:
-                ASM.PUSHJ pushj = new ASM.PUSHJ(new IMC.TEMP(), (IMC.NAME)call.addr);
+                // Putting the args on stack
+                // TODO: premisli the use of stack pointer: ali je SL na [SP] ali na [SL-8]?
+                int offset = 8;
+                
+                IMC.TEMP stptr = new IMC.TEMP();
+                IMC.CONST off = new IMC.CONST(offset);
+
+                if (call.args.size() > 0) {
+                    ASM.SET set = new ASM.SET(stptr, this.SP);
+                    asmChunk.put(set);
+                }
+                for (IMC.Expr argm : call.args) {
+                    ASM.BINOP sub = new ASM.BINOP(IMC.BINOP.Oper.SUB, stptr, stptr, off);
+                    asmChunk.put(sub);
+                    ASM.MEMO store;
+                    if (argm instanceof IMC.TEMP temp) {
+                        store = new ASM.MEMO(true, 8L, temp, stptr, new IMC.CONST(0L));
+                    } else if (argm instanceof IMC.CONST cons) {
+                        IMC.TEMP temp = new IMC.TEMP();
+                        ASM.SET set = new ASM.SET(temp, cons);
+                        asmChunk.put(set);
+                        store = new ASM.MEMO(true, 8L, temp, stptr, new IMC.CONST(0L));
+                    } else if (argm instanceof IMC.NAME name) {
+                        IMC.TEMP temp = new IMC.TEMP();
+                        ASM.LDA lda = new ASM.LDA(temp, name);
+                        asmChunk.put(lda);
+                        store = new ASM.MEMO(true, 8L, temp, stptr, new IMC.CONST(0L));
+                    } else throw new Report.Error("What did you put in your CALL? " + argm);
+                    asmChunk.put(store);
+                    offset = offset - 8;
+                }
+
+                IMC.TEMP pushjRegister = new IMC.TEMP();
+                ASM.PUSHJ pushj = new ASM.PUSHJ(pushjRegister, (IMC.NAME)call.addr);
+                //asmChunk.put(localsCount);
                 asmChunk.put(pushj);
+                // TODO: check If return value is needed...
+                // TJ. if 'dest' is live ... otherwise kill it?
+                ASM.SET copyRetVal = new ASM.SET(dest, pushjRegister);
+                asmChunk.put(copyRetVal);
+
         }
 
         // Pushj will need size of stack frame.

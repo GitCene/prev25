@@ -328,8 +328,9 @@ public class ImcGenerator implements AST.FullVisitor<IMC.Instr, Object> {
                 FP = new IMC.MEM8(FP);
             }
             
-            IMC.CONST offset = new IMC.CONST(relAccess.offset);
-            IMC.BINOP accessArithm = new IMC.BINOP(IMC.BINOP.Oper.ADD, FP, offset);
+            IMC.CONST offset = new IMC.CONST(Math.abs(relAccess.offset));
+            IMC.BINOP.Oper ope = relAccess.offset >= 0 ? IMC.BINOP.Oper.ADD : IMC.BINOP.Oper.SUB;
+            IMC.BINOP accessArithm = new IMC.BINOP(ope, FP, offset);
             accessCode = accessArithm;
         } else throw new Report.InternalError();
 

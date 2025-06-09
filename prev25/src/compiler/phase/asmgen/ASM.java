@@ -3,29 +3,24 @@ package compiler.phase.asmgen;
 import java.util.HashMap;
 import java.util.Vector;
 
-import org.stringtemplate.v4.ST;
-
 import compiler.common.report.Report;
 import compiler.phase.abstr.AST.BinExpr.Oper;
 import compiler.phase.imcgen.IMC;
 import compiler.phase.memory.MEM;
+import compiler.phase.memory.MEM.Temp;
 
 /**
  * Assembly instructions for MMIX.
  */
 public class ASM {
-    private static Object nc(Object in) {
-        if (in == null) {
-            return 255;
-        }
-        else return in;
-    }
 
     /**
      * An operand passed to an assembly instruction.
      */
     public static abstract class Operand {
-        
+        public int color(HashMap<MEM.Temp, Integer> coloring) {
+            return -1;
+        }
     }
 
     /**
@@ -33,8 +28,8 @@ public class ASM {
      */
     public static class Register extends Operand {
         public final MEM.Temp virtual;
-        private int physical;
-        private boolean colored = false;
+        public Integer physical;
+        public boolean colored = false;
         
         public Register(IMC.TEMP temp) {
             this.virtual = temp.temp;
@@ -44,17 +39,32 @@ public class ASM {
             this.virtual = temp;
         }
 
-        public void color(int color) {
-            this.physical = color;
-            this.colored = true;
-        }
-
         @Override
         public String toString() {
             if (this.colored)
-                return String.format("$%d", this.physical);
+                switch (this.physical) {
+                    case null:
+                        return "$0";
+                        //return "NUL(" + this.virtual + ")";
+                    // TODO: poenoti mapping global registrov.
+                    case 253:
+                        return "FP";
+                    case 254:
+                        return "SP";
+                    default:
+                        return String.format("$%d", this.physical);
+                }
             else
                 return this.virtual.toString();
+        }
+
+        @Override
+        public int color(HashMap<MEM.Temp, Integer> coloring) {
+            this.physical = coloring.get(this.virtual);
+            // TODO: Let's assume this for now;
+            //if (this.physical == null) this.physical = 0;
+            this.colored = true;
+            return this.physical == null ? 0 : this.physical;
         }
     }
 
@@ -103,6 +113,9 @@ public class ASM {
         // public String mapped(HashMap<MEM.Temp, Integer> mapping) {
         //    return this.toString();
         //}
+        public int color(HashMap<MEM.Temp, Integer> coloring) {
+            return -1;
+        }
 
     }
 
@@ -122,7 +135,7 @@ public class ASM {
             this.X = new Register(a1);
             this.def.add(this.X);
             this.Y = new Register(a2);
-            this.def.add(this.Y);
+            this.use.add(this.Y);
             if (a3 instanceof IMC.CONST c) {
                 this.Z = new Immediate(c.value);
             } else if (a3 instanceof IMC.TEMP t) {
@@ -136,6 +149,14 @@ public class ASM {
 
         public String toString() {
             return String.format("%-8s %-8s %s,%s,%s", this.labelText(), this.mnem(), this.X, this.Y, this.Z);
+        }
+
+        @Override
+        public int color(HashMap<MEM.Temp, Integer> coloring) {
+            int x = this.X.color(coloring);
+            int y = this.Y.color(coloring);
+            int z = this.Z.color(coloring);
+            return Integer.max(x, Integer.max(y, z));
         }
     }
 
@@ -168,9 +189,16 @@ public class ASM {
         public String toString() {
             return String.format("%-8s %-8s %s,%s", this.labelText(), this.mnem(), this.X, this.Z);
         }
+
+        @Override
+        public int color(HashMap<MEM.Temp, Integer> coloring) {
+            int x = this.X.color(coloring);
+            int z = this.Z.color(coloring);
+            return Integer.max(x, z);
+        }
     }
     /**
-     * Copy a G.P. register's value to another G.P. register.
+     * Copy a G.P. register's value to another G.P. register, or set it to a constant.
      */
     public static class SET extends BiOp {
         public SET(IMC.TEMP a1, IMC.Expr a2) {
@@ -180,6 +208,20 @@ public class ASM {
         @Override
         public String mnem() {
             return "SET";
+        }
+    }
+
+    /**
+     * Copy a special register's value to a G.P. register.
+     */
+    public static class GET extends BiOp {
+        public GET(IMC.TEMP a1, IMC.Expr a2) {
+            super(a1, a2);
+        }
+
+        @Override
+        public String mnem() {
+            return "GET";
         }
     }
 
@@ -271,6 +313,11 @@ public class ASM {
 
         public String toString() {
             return String.format("%-8s %-8s %s,%s", this.labelText(), this.mnem(), this.cond, this.dest.name);
+        }
+
+        @Override
+        public int color(HashMap<MEM.Temp, Integer> coloring) {
+            return this.cond.color(coloring);
         }
     }
 
@@ -462,6 +509,14 @@ public class ASM {
         public String toString() {
             return String.format("%-8s %-8s %s,%s,%s", this.labelText(), this.mnem(), this.X, this.Y, this.Z);
         }
+
+        @Override
+        public int color(HashMap<MEM.Temp, Integer> coloring) {
+            int x = this.X.color(coloring);
+            int y = this.Y.color(coloring);
+            int z = this.Z.color(coloring);
+            return Integer.max(x, Integer.max(y, z));
+        }
     }
 
     /**
@@ -481,6 +536,11 @@ public class ASM {
         public String toString() {
             return String.format("%-8s %-8s %s,%s", this.labelText(), "LDA", this.dest, this.label.name);
         }
+
+        @Override
+        public int color(HashMap<MEM.Temp, Integer> coloring) {
+            return this.dest.color(coloring);
+        }
     }
 
     /**
@@ -488,16 +548,22 @@ public class ASM {
      * TODO.
      */
     public static class PUSHJ extends Instr {
-        Register framesize;
-        MEM.Label callee;
+        public Register callreg;
+        public MEM.Label callee;
         
-        public PUSHJ(IMC.TEMP framesize, IMC.NAME callee) {
-            this.framesize = new Register(framesize);
+        public PUSHJ(IMC.TEMP callreg, IMC.NAME callee) {
+            this.callreg = new Register(callreg);
             this.callee = callee.label;
+            this.def.add(this.callreg);
         }
 
         public String toString() {
-            return String.format("%-8s %-8s %s,%s", this.labelText(), "PUSHJ", this.framesize, this.callee.name);
+            return String.format("%-8s %-8s %s,%s", this.labelText(), "PUSHJ", this.callreg, this.callee.name);
+        }
+
+        @Override
+        public int color(HashMap<MEM.Temp, Integer> coloring) {
+            return this.callreg.color(coloring);
         }
     }
 
@@ -514,7 +580,7 @@ public class ASM {
         }
 
         public String toString() {
-            return String.format("%-8s %-8s %s,%s", this.labelText(), "TRAP", this.Y, this.Z);
+            return String.format("%-8s %-8s 0,%s,%s", this.labelText(), "TRAP", this.Y, this.Z);
         }
     }
     /*
@@ -573,11 +639,19 @@ public class ASM {
         }
 
         public void emitPhysical() {
-            System.out.printf("%% name: %s, entry: %s, exit: %s, FP: %s, RV: %s\n", this.name, this.entryLabel.name, this.exitLabel.name, this.frame.FP, this.frame.RV);
+            //System.out.printf("%% name: %s, entry: %s, exit: %s, FP: %s, RV: %s\n", this.name, this.entryLabel.name, this.exitLabel.name, this.frame.FP, this.frame.RV);
             for (Instr instr : this.asm) {                
                 //System.out.println(instr.mapped(this.coloring));
                 System.out.println(instr);
             }
+        }
+
+        public Vector<String> getPhysical() {
+            Vector<String> vec = new Vector<String>();
+            for (Instr instr : this.asm) {
+                vec.add(instr.toString());
+            }
+            return vec;
         }
     }
 
