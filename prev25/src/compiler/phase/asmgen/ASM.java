@@ -73,15 +73,15 @@ public class ASM {
      */
     public static class Immediate extends Operand {
         //TODO: Think about what kind of values will be here.
-        private final String value;
+        public Long value;
 
         public Immediate(Long value) {
-            this.value = Long.toString(value);
+            this.value = value;
         }
 
         @Override
         public String toString() {
-            return this.value;
+            return Long.toString(this.value);
         }
     }
     /**
@@ -201,14 +201,69 @@ public class ASM {
      * Copy a G.P. register's value to another G.P. register, or set it to a constant.
      */
     public static class SET extends BiOp {
+        public int kind;   
+        // 0: SET
+        // 1: SETL
+        // 2: SETML
+        // 3: SETMH
+        // 4: SETH
+
         public SET(IMC.TEMP a1, IMC.Expr a2) {
             super(a1, a2);
+            this.kind = 0;
+        }
+
+        public SET(IMC.TEMP a1, IMC.Expr a2, int kind) {
+            super(a1, a2);
+            this.kind = kind;
         }
 
         @Override
         public String mnem() {
-            return "SET";
+            switch (this.kind) {
+                case 0:
+                    return "SET";
+                case 1:
+                    return "SETL";
+                case 2:
+                    return "SETML";
+                case 3:
+                    return "SETMH";
+                case 4:
+                    return "SETH";
+                default:
+                    return "SET";
+            }
         }
+    }
+
+    /*
+     * Increase by high wyde / mh wyde / ml wyde / low wyde.
+     * To put large constants into registers.
+     */
+    public static class INC extends BiOp {
+        public int kind;
+        public INC(IMC.TEMP a1, IMC.CONST a2, int kind) {
+            super(a1, a2);
+            this.kind = kind;
+        }
+
+        @Override
+        public String mnem() {
+            switch (this.kind) {
+                case 1:
+                    return "INCL";
+                case 2:
+                    return "INCML";
+                case 3:
+                    return "INCMH";
+                case 4:
+                    return "INCH";
+                default:
+                    return "INCL";
+            }
+        }
+        
     }
 
     /**
@@ -222,6 +277,20 @@ public class ASM {
         @Override
         public String mnem() {
             return "GET";
+        }
+    }
+
+    /*
+     * Negate a register's integer value.
+     */
+    public static class NEG extends BiOp {
+        public NEG (IMC.TEMP a1, IMC.TEMP a2) {
+            super(a1, a2);
+        }
+
+        @Override
+        public String mnem() {
+            return "NEG";
         }
     }
 
@@ -564,6 +633,32 @@ public class ASM {
         @Override
         public int color(HashMap<MEM.Temp, Integer> coloring) {
             return this.callreg.color(coloring);
+        }
+    }
+
+    /*
+     * MMIX's wilder way to call subroutines.
+     */
+    public static class PUSHGO extends Instr {
+        public Register callreg;
+        public Register callee;
+        
+        public PUSHGO(IMC.TEMP callreg, IMC.TEMP callee) {
+            this.callreg = new Register(callreg);
+            this.callee = new Register(callee);
+            this.def.add(this.callreg);
+            this.use.add(this.callee);
+        }
+
+        public String toString() {
+            return String.format("%-8s %-8s %s,%s,%d", this.labelText(), "PUSHGO", this.callreg, this.callee, 0);
+        }
+
+        @Override
+        public int color(HashMap<MEM.Temp, Integer> coloring) {
+            int x = this.callreg.color(coloring);
+            int y = this.callee.color(coloring);
+            return Integer.max(x, y);
         }
     }
 

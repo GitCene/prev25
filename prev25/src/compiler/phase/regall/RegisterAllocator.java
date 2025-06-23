@@ -141,12 +141,15 @@ public class RegisterAllocator {
             boolean setAfterPushj = false;
             Vector<ASM.Instr> deleteRedundantInstrs = new Vector<ASM.Instr>();
             for (ASM.Instr instr : chunk.asm) {
-                if (instr instanceof ASM.SET set && setAfterPushj) {
+                /*
+                 * 
+                 if (instr instanceof ASM.SET set && setAfterPushj) {
                     if (set.X instanceof ASM.Register reg) {
                         if (reg.physical == null)
-                            deleteRedundantInstrs.add(instr);
+                        deleteRedundantInstrs.add(instr);
                     }
                 }
+                */
                 if (instr instanceof ASM.PUSHJ pushj) {
                     coloring.put(pushj.callreg.virtual, maxcolor+1);
                     setAfterPushj = true;
@@ -155,6 +158,7 @@ public class RegisterAllocator {
             }
             
             // Here, we could trim some of the SET's that happen after calls.
+            // But you did it in the wrong way, so the code was broken.
             chunk.asm.removeAll(deleteRedundantInstrs);
         }
         return true;

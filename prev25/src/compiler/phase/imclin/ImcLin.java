@@ -14,7 +14,7 @@ public class ImcLin extends Phase {
 	/** All data chunks of the program. */
 	private final static Vector<LIN.DataChunk> dataChunks = new Vector<LIN.DataChunk>();
 
-	/** All code chinks of the program. */
+	/** All code chunks of the program. */
 	private final static Vector<LIN.CodeChunk> codeChunks = new Vector<LIN.CodeChunk>();
 
 	/**

@@ -12,7 +12,7 @@ import compiler.phase.imcgen.*;
  */
 public class Interpreter {
 
-    private boolean debug = true;
+    private boolean debug = false;
 
     /** if CJUMP cond is <strong>false</strong>, fall through */
     private final boolean ENFORCE_FALL_THROUGH = true;

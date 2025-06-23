@@ -151,7 +151,7 @@ public class Compiler {
 			if (cmdLineOptValues.get("--dst-file-name") == null) {
 				cmdLineOptValues.put("--dst-file-name",
 						// TODO: Insert the appropriate file suffix.
-						cmdLineOptValues.get("--src-file-name").replaceFirst("\\.[^./]*$", ".mm"));
+						cmdLineOptValues.get("--src-file-name").replaceFirst("\\.[^./]*$", ".mms"));
 			}
 			if (cmdLineOptValues.get("--target-phase") == null)
 				cmdLineOptValues.put("--target-phase", "all");
@@ -226,10 +226,9 @@ public class Compiler {
 				}
 				if (cmdLineOptValues.get("--target-phase").equals("imcgen"))
 					break;
+
 				
 				// Linearization of intermediate code. 
-
-				 
 				try (ImcLin imclin = new ImcLin()) {
 					Abstr.tree.accept(new ChunkGenerator(), null);
 					imclin.log();
@@ -239,16 +238,18 @@ public class Compiler {
 						System.out.println("EXIT CODE: " + interpreter.run("_main"));
 					}
 				}
-				if (cmdLineOptValues.get("--target-phase").equals("imclin"))
+				if (cmdLineOptValues.get("--target-phase").equals("imclin") || false)
 					break;
 
 				// Assembly code generation.
 				try (AsmGen asmgen = new AsmGen()) {
 					AsmGenerator asmGenerator = new AsmGenerator(ImcLin.dataChunks(), ImcLin.codeChunks());
 					asmGenerator.munch();
-					//asmGenerator.emitAll();
+					asmGenerator.fixConsts();
+
+					asmGenerator.emitAll();
 				}
-				if (cmdLineOptValues.get("--target-phase").equals("asmgen") || false)
+				if (cmdLineOptValues.get("--target-phase").equals("asmgen"))
 					break;
 				
 				// Liveness analysis.
@@ -257,7 +258,7 @@ public class Compiler {
 					livenessAnalyzer.analyze();
 					livenessAnalyzer.emitAll();
 				}
-				if (cmdLineOptValues.get("--target-phase").equals("livean"))
+				if (cmdLineOptValues.get("--target-phase").equals("livean") || false)
 					break;
 
 				// Register allocation.
@@ -268,13 +269,13 @@ public class Compiler {
 					}
 
 					String regsCmdline = cmdLineOptValues.get("--num-regs");
-					int regs = 32;
+					int regs = 128;
 					if (regsCmdline == null) {
-						Report.warning("Did not pass number of registers using '--num-regs' flag; defaulting to 32");
+						Report.warning("Did not pass number of registers using '--num-regs' flag; defaulting to 128");
 					} else try {
 						regs = Integer.parseInt(regsCmdline);
 					} catch (NumberFormatException e) {
-						Report.warning("Could not parse number of registers passed using '--num-regs' flag; defaulting to 32");
+						Report.warning("Could not parse number of registers passed using '--num-regs' flag; defaulting to 128");
 					}
 					RegisterAllocator registerAllocator = new RegisterAllocator(AsmGen.asm, LiveAn.graphMap, regs);
 					boolean success = registerAllocator.allocate();
@@ -291,6 +292,9 @@ public class Compiler {
 				}
 
 				// Output.
+				// If everything is all right, the file is written to /prev25/mmix/$name.mms
+				// And just double click it to open the fancy MMIX debugger!
+
 				String filename = String.format("../mmix/%s", cmdLineOptValues.get("--dst-file-name"));
 				try (FileWriter writer = new FileWriter(filename)) {
 					for (String line : Finalize.codeText) {

@@ -243,12 +243,11 @@ public class MemEvaluator implements AST.FullVisitor<Long, Long> { // <retval, a
         argsSize = paramBlockSize;
         paramBlockSize = tempParamBlockSize;
 
-        // Increase argsSize by SL
-        // TODO: decide if functions which have no callexprs, do not get this.
+        // Increase outargs by SL
         argsSize += PTRSIZE;
 
-        // size = local vars + prev. FP + return address + (temp vars, registers) + (outargs + SL)
-        size = locsSize      + PTRSIZE  + PTRSIZE                                 + argsSize;
+        // size = local vars + prev. FP + return address + (temp vars, registers) + outargs (incl. SL)
+        size =     locsSize  + PTRSIZE  +   PTRSIZE                              + argsSize;
         
         // depth ++ for vars inside the function, while the function is still of depth depth
         Memory.frames.put(defFunDefn, new MEM.Frame(label, this.depth-1, locsSize, argsSize, size));

@@ -1,5 +1,9 @@
 lexer grammar Prev25Lexer;
 
+// HELPME: This file defines tokens allowed by the language.
+// To add a new token, just do:
+// TOKENNAME	: regex ;
+
 @header {
 	package compiler.phase.lexan;
 
@@ -20,7 +24,6 @@ lexer grammar Prev25Lexer;
 		throw new Report.Error(new Location(getLine(), getCharPositionInLine()+1), "Unrecognizable symbol: " + e.getInputStream().getText(new Interval(ix, ix))) ;
 	}
 }
-//
 
 
 // 1. constants

@@ -1,5 +1,15 @@
 parser grammar Prev25Parser;
 
+// HELPME: This file defines the grammar, how tokens can combine.
+// To add a new rule, do
+// rulename
+//		returns [AST.SomeThing ast] (or a list... etc)
+//		: TOKEN1 { $ast = new AST.SomeThing(...); }
+//		| TOKEN2 { $ast = new AST.SubSomeThing(...); }
+//		| token3 { $ast = $token3.ast }
+//		;
+// or something like that.
+
 @header {
 
 	package compiler.phase.synan;
@@ -10,6 +20,7 @@ parser grammar Prev25Parser;
 	import compiler.phase.abstr.*;
 
 }
+
 
 @members {
 
